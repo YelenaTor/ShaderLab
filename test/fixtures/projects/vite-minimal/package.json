@@ -1,0 +1,7 @@
+{
+  "name": "fixture-vite-minimal",
+  "private": true,
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

@@ -1,0 +1,4 @@
+node_modules
+dist
+*.slab.d.ts
+*.tmp

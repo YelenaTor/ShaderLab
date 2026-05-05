@@ -1,0 +1,40 @@
+name: CI
+
+# -----------------------------------------------------------------------------
+# Automated CI is OFF until you want Actions to run on every push/PR.
+#
+# To enable: uncomment `on`/`jobs` below, delete `workflow_dispatch` + `noop`.
+#
+# on:
+#   push:
+#     branches: [master, dev]
+#   pull_request:
+#
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         node-version: [18, 20, 22]
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: ${{ matrix.node-version }}
+#           cache: npm
+#       - run: npm ci
+#       - run: npm run check:compiler-boundary
+#       - run: npm run typecheck
+#       - run: npm test
+#       - run: npm run build
+# -----------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CI template disabled — uncomment jobs in .github/workflows/ci.yml when ready."

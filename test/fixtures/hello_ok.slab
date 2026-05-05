@@ -1,0 +1,7 @@
+<shaderlab version="1.0">
+  <shader id="demo" type="canvas_item">
+    <fragment><![CDATA[
+COLOR = vec4(UV, sin(TIME) * 0.5 + 0.5, 1.0);
+    ]]></fragment>
+  </shader>
+</shaderlab>

@@ -1,0 +1,5 @@
+<shaderlab version="1.0">
+  <shader id="a" type="canvas_item">
+    <fragment><![CDATA[   ]]></fragment>
+  </shader>
+</shaderlab>

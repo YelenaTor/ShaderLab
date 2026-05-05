@@ -1,0 +1,110 @@
+{
+  "name": "shaderlab",
+  "version": "0.1.0-testing.0",
+  "description": "Vite-first shader DSL plugin for the web (.slab → GLSL)",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "author": "ShaderLab Contributors",
+  "homepage": "https://github.com/YelenaTor/ShaderLab#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YelenaTor/ShaderLab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YelenaTor/ShaderLab/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite/entry.d.ts",
+      "import": "./dist/vite/entry.js"
+    },
+    "./nuxt": {
+      "types": "./dist/adapters/nuxt.d.ts",
+      "import": "./dist/adapters/nuxt.js"
+    },
+    "./sveltekit": {
+      "types": "./dist/adapters/sveltekit.d.ts",
+      "import": "./dist/adapters/sveltekit.js"
+    },
+    "./remix": {
+      "types": "./dist/adapters/remix.d.ts",
+      "import": "./dist/adapters/remix.js"
+    },
+    "./postinstall": {
+      "import": "./dist/cli/postinstall.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./vue": {
+      "types": "./dist/vue/index.d.ts",
+      "import": "./dist/vue/index.js"
+    },
+    "./svelte": {
+      "types": "./dist/svelte/use-shader.d.ts",
+      "import": "./dist/svelte/use-shader.js",
+      "svelte": "./dist/svelte/ShaderLab.svelte"
+    }
+  },
+  "bin": {
+    "shaderlab": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "src/svelte",
+    "scripts",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly && node ./scripts/copy-svelte.mjs",
+    "postinstall": "node ./scripts/postinstall.cjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check:compiler-boundary": "node ./scripts/check-compiler-boundary.mjs"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0",
+    "@nuxt/kit": "^3.13.0 || ^4.0.0",
+    "react": ">=18.0.0 <20.0.0",
+    "vue": "^3.4.0",
+    "svelte": "^4.0.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/kit": { "optional": true },
+    "react": { "optional": true },
+    "vue": { "optional": true },
+    "svelte": { "optional": true }
+  },
+  "devDependencies": {
+    "@nuxt/kit": "^3.15.0",
+    "@types/react": "^19.0.0",
+    "@types/node": "^22.10.0",
+    "happy-dom": "^15.11.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0",
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.6"
+  }
+}

@@ -1,0 +1,6 @@
+<shaderlab version="1.0">
+  <shader id="a" type="canvas_item">
+    <vertex><![CDATA[   ]]></vertex>
+    <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
+  </shader>
+</shaderlab>

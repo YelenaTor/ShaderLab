@@ -1,0 +1,7 @@
+<shaderlab version="1.0">
+  <shader id="pp" type="postprocess">
+    <fragment><![CDATA[
+COLOR = texture(SCREEN_TEXTURE, SCREEN_UV);
+    ]]></fragment>
+  </shader>
+</shaderlab>
