@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import type { ShaderAst, ShaderlabAst, ShaderType, UniformAst, UniformType } from "./types.js";
 import { diagnostic } from "./errors.js";
 import type { ShaderlabDiagnostic } from "./errors.js";
+import { buildLineIndex, findShaderLines, findUniformLines } from "./source-locations.js";
 
 export interface ParseResult {
   ast: ShaderlabAst;
@@ -19,6 +20,9 @@ const UNIFORM_TYPES = new Set<UniformType>([
 ]);
 
 const SHADER_TYPES = new Set<ShaderType>(["canvas_item", "postprocess"]);
+
+/** Same shape as shader `id`; uniform names must match so GLSL `u_*` names stay aligned with slab identifiers. */
+const UNIFORM_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -58,7 +62,12 @@ export function parse(src: string, filename = "input.slab"): ParseResult {
   const shaderNodes = toArray(shadersRaw);
   const shaders: ShaderAst[] = [];
 
-  for (const node of shaderNodes) {
+  const lineIndex = buildLineIndex(src);
+  const shaderLines = findShaderLines(src, lineIndex);
+  const uniformLines = findUniformLines(src, lineIndex);
+
+  for (let shaderIndex = 0; shaderIndex < shaderNodes.length; shaderIndex++) {
+    const node = shaderNodes[shaderIndex];
     if (!node || typeof node !== "object") continue;
     const s = node as Record<string, unknown>;
     const id = typeof s["@_id"] === "string" ? s["@_id"].trim() : "";
@@ -70,12 +79,20 @@ export function parse(src: string, filename = "input.slab"): ParseResult {
           ? s["@_renderMode"]
           : "";
 
+    // Fallback keeps `ShaderAst.type` populated for invalid `typeRaw`; validator emits E0203 and compile skips codegen.
     const type: ShaderType = SHADER_TYPES.has(typeRaw as ShaderType)
       ? (typeRaw as ShaderType)
       : "canvas_item";
 
     const uniformsBlock = s.uniforms;
-    const uniforms = parseUniforms(uniformsBlock, filename, diagnostics);
+    const shaderLine = shaderLines[shaderIndex] ?? 1;
+    const uniforms = parseUniforms(
+      uniformsBlock,
+      filename,
+      diagnostics,
+      uniformLines[shaderIndex] ?? [],
+      shaderLine,
+    );
 
     const hasVertexKey = Object.prototype.hasOwnProperty.call(s, "vertex");
     const vertexRaw = extractCDATA(s.vertex);
@@ -97,7 +114,7 @@ export function parse(src: string, filename = "input.slab"): ParseResult {
       uniforms,
       vertexBody,
       fragmentBody,
-      line: 1,
+      line: shaderLine,
     });
   }
 
@@ -113,6 +130,8 @@ function parseUniforms(
   uniformsBlock: unknown,
   filename: string,
   diagnostics: ShaderlabDiagnostic[],
+  linesForThisShader: readonly number[],
+  shaderLine: number,
 ): UniformAst[] {
   if (uniformsBlock == null) return [];
   if (typeof uniformsBlock !== "object") return [];
@@ -120,7 +139,9 @@ function parseUniforms(
   const rawList = u.uniform;
   const list = toArray(rawList);
   const out: UniformAst[] = [];
-  for (const item of list) {
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i];
+    const uline = linesForThisShader[i] ?? shaderLine ?? 1;
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
     const name = typeof o["@_name"] === "string" ? o["@_name"].trim() : "";
@@ -134,12 +155,23 @@ function parseUniforms(
           : null;
 
     if (!name) {
-      diagnostics.push(diagnostic("E0302", "Missing `name` on `<uniform>`", filename, 1));
+      diagnostics.push(diagnostic("E0302", "Missing `name` on `<uniform>`", filename, uline));
+      continue;
+    }
+    if (!UNIFORM_NAME_RE.test(name)) {
+      diagnostics.push(
+        diagnostic(
+          "E0304",
+          `Invalid uniform \`name\` "${name}" — use letters, digits, underscore only`,
+          filename,
+          uline,
+        ),
+      );
       continue;
     }
     if (!UNIFORM_TYPES.has(typeStr as UniformType)) {
       diagnostics.push(
-        diagnostic("E0303", `Unknown uniform \`type\` "${typeStr}"`, filename, 1),
+        diagnostic("E0303", `Unknown uniform \`type\` "${typeStr}"`, filename, uline),
       );
       continue;
     }
@@ -148,6 +180,7 @@ function parseUniforms(
       type: typeStr as UniformType,
       hint: hint && hint.length > 0 ? hint : null,
       default: def && def.length > 0 ? def : null,
+      line: uline,
     });
   }
   return out;

@@ -52,4 +52,14 @@ describe("diagnostic consistency", () => {
     );
     expect(r.diagnostics.some((d) => d.code === "W0101")).toBe(true);
   });
+
+  it("parse-time uniform diagnostics use opening-tag line when not on line 1", () => {
+    const r = compileSlab(
+      readFileSync(join(fixturesDir, "e0303_bad_uniform_type.slab"), "utf8"),
+      "e0303_bad_uniform_type.slab",
+    );
+    const e0303 = r.diagnostics.find((d) => d.code === "E0303");
+    expect(e0303, "E0303 expected for bad uniform type").toBeDefined();
+    expect(e0303!.line, "uniform sits below line 1 in fixture").toBeGreaterThanOrEqual(2);
+  });
 });

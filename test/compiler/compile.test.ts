@@ -39,6 +39,7 @@ describe("compileSlab", () => {
     { file: "e0301_missing_fragment_tag.slab", code: "E0301" },
     { file: "e0302_uniform_no_name.slab", code: "E0302" },
     { file: "e0303_bad_uniform_type.slab", code: "E0303" },
+    { file: "e0304_uniform_bad_name.slab", code: "E0304" },
   ];
 
   for (const { file, code } of errorCases) {

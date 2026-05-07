@@ -1,20 +1,6 @@
 import { scanBuiltinStages } from "../builtins.js";
-import type { CompiledShader, ShaderAst, ShaderRuntimeMetadata, UniformBindingMeta } from "../types.js";
-import { parseHint } from "../hints.js";
-
-function glslUniformName(userName: string): string {
-  const safe = userName.replace(/[^a-zA-Z0-9_]/g, "_");
-  return `u_${safe}`;
-}
-
-function pickBlend(
-  modes: import("../types.js").RenderMode[],
-): "normal" | "add" | "multiply" | "premult_alpha" | null {
-  if (modes.includes("blend_add")) return "add";
-  if (modes.includes("blend_multiply")) return "multiply";
-  if (modes.includes("blend_premult_alpha")) return "premult_alpha";
-  return null;
-}
+import type { CompiledShader, ShaderAst, ShaderRuntimeMetadata } from "../types.js";
+import { buildUniformBlock, pickBlend } from "./shared.js";
 
 export function buildPostprocessShader(sh: ShaderAst): CompiledShader {
   const vertexSrc = sh.vertexBody ?? "";
@@ -45,40 +31,10 @@ export function buildPostprocessShader(sh: ShaderAst): CompiledShader {
   vs.push("}");
   const vertexGlsl = vs.join("\n");
 
-  let texUnit = 0;
-  const uniformMeta: UniformBindingMeta[] = [];
-  const userUniformDeclFs: string[] = [];
-
-  for (const u of sh.uniforms) {
-    const glsl = glslUniformName(u.name);
-    const glslType =
-      u.type === "sampler2D"
-        ? "sampler2D"
-        : u.type === "bool"
-          ? "bool"
-          : u.type;
-    userUniformDeclFs.push(`uniform ${glslType} ${glsl};`);
-    const hintParsed = parseHint(u.hint);
-    const range =
-      hintParsed && hintParsed.kind === "range"
-        ? ([hintParsed.min, hintParsed.max] as const)
-        : null;
-    const tu = u.type === "sampler2D" ? texUnit++ : null;
-    const mousePosition =
-      hintParsed?.kind === "named" && hintParsed.name === "mouse_position";
-    uniformMeta.push({
-      name: u.name,
-      glslName: glsl,
-      slabType: u.type,
-      hint: u.hint,
-      default: u.default,
-      range,
-      textureUnit: tu,
-      mousePosition,
-    });
-  }
-
-  const screenUnit = texUnit++;
+  const userUniforms = buildUniformBlock(sh.uniforms, 0);
+  const uniformMeta = userUniforms.meta;
+  const userUniformDeclFs = userUniforms.decls;
+  const screenUnit = userUniforms.nextTexUnit;
   const fs: string[] = [
     "#version 300 es",
     "precision mediump float;",

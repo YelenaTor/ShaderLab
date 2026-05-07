@@ -24,12 +24,17 @@ export type UniformType =
   | "vec4"
   | "sampler2D";
 
+/** Blend mode derived from `render_mode` blend tokens (mutually exclusive in valid slabs). */
+export type BlendMode = "add" | "multiply" | "premult_alpha";
+
 /** Raw `hint` attribute value from `<uniform>` (e.g. `range(0.0, 5.0)`). */
 export interface UniformAst {
   name: string;
   type: UniformType;
   hint: string | null;
   default: string | null;
+  /** Best-effort line of `<uniform>` start for diagnostics. */
+  line?: number;
 }
 
 export interface ShaderAst {
@@ -73,7 +78,7 @@ export interface ShaderRuntimeMetadata {
   shaderType: ShaderType;
   referencedBuiltins: readonly string[];
   uniforms: readonly UniformBindingMeta[];
-  blendMode: "normal" | "add" | "multiply" | "premult_alpha" | null;
+  blendMode: BlendMode | null;
   cullDisabled: boolean;
   /** WebGL texture unit for builtin `TEXTURE` (`canvas_item` only). */
   textureBuiltinUnit?: number | null;

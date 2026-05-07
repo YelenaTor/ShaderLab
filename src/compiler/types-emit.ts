@@ -1,5 +1,5 @@
 /**
- * Emits a sibling `*.slab.d.ts` for TypeScript consumers — see docs/LANGUAGE.md § Compilation outputs.
+ * Emits a sibling `*.slab.d.ts` for TypeScript consumers — see docs/LANGUAGE.md (Compilation outputs).
  */
 
 import type { CompilerOutput, UniformBindingMeta } from "./types.js";
@@ -43,7 +43,7 @@ function emitUniformField(u: UniformBindingMeta): string {
   if ((u.slabType === "float" || u.slabType === "int") && u.range) {
     docs.push(`range: ${u.range[0]}-${u.range[1]}`);
   }
-  if (u.hint && /color/i.test(u.hint) && (u.slabType === "vec3" || u.slabType === "vec4")) {
+  if (u.hint === "color" && (u.slabType === "vec3" || u.slabType === "vec4")) {
     docs.push("color hint (same tuple shape as vec3/vec4)");
   }
 

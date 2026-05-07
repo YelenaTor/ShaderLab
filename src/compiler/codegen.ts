@@ -5,10 +5,18 @@ import { buildPostprocessShader } from "./templates/postprocess.js";
 export function generate(ast: ShaderlabAst): CompilerOutput {
   const shaders = [];
   for (const sh of ast.shaders) {
-    if (sh.typeRaw === "canvas_item") {
-      shaders.push(buildCanvasItemShader(sh));
-    } else if (sh.typeRaw === "postprocess") {
-      shaders.push(buildPostprocessShader(sh));
+    switch (sh.type) {
+      case "canvas_item":
+        shaders.push(buildCanvasItemShader(sh));
+        break;
+      case "postprocess":
+        shaders.push(buildPostprocessShader(sh));
+        break;
+      default: {
+        const _exhaustive: never = sh.type;
+        void _exhaustive;
+        break;
+      }
     }
   }
   return { shaders };

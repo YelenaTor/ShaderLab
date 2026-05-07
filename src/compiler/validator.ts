@@ -166,7 +166,7 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
             "W0201",
             `Unknown \`hint\` value "${u.hint}" — hint will be ignored`,
             filename,
-            sh.line ?? 1,
+            u.line ?? sh.line ?? 1,
           ),
         );
       }
@@ -179,7 +179,7 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
               "W0202",
               "`default` value outside `range()` bounds",
               filename,
-              sh.line ?? 1,
+              u.line ?? sh.line ?? 1,
             ),
           );
         }

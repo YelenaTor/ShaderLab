@@ -35,8 +35,10 @@ Children:
 | Element | Meaning |
 |---------|---------|
 | `<uniforms> … </uniforms>` | Optional; wraps `<uniform>` rows (see Uniforms). |
-| `<vertex>` | Optional CDATA GLSL body template expands into generated vertex shader when relevant to shader kind. |
+| `<vertex>` | Optional CDATA GLSL merged into the generated vertex shader (see **Vertex body order** below). |
 | `<fragment>` | **Required** non-empty CDATA fragment stage (`E0301` if missing / empty). |
+
+**Vertex body order (0.1.x).** The templates emit a small `main()` that sets up **`slab_pos`**, **`UV`**, **`VERTEX_COLOR`** (canvas_item only), and an initial **`gl_Position`**, then append your `<vertex>` body **after** that setup. Your code may read those varyings and may **overwrite `gl_Position`** to customize the fullscreen triangle. The name **`slab_pos`** is an implementation detail, not a stable public builtin. A future opt-in (for example a dedicated `render_mode`) could skip the default setup entirely if full custom vertex `main()` becomes a priority.
 
 ### Uniform rows
 
@@ -46,7 +48,7 @@ Children:
 
 | Attribute | Meaning |
 |-----------|---------|
-| **`name`** | Slab-side uniform identifier (`E0302` if absent). |
+| **`name`** | Slab-side uniform identifier (`E0302` if absent; must match `^[a-zA-Z_][a-zA-Z0-9_]*$` or **`E0304`**). |
 | **`type`** | `float`, `int`, `bool`, `vec2`, `vec3`, `vec4`, `sampler2D` (`E0303` when unknown). |
 | **`hint`** | Optional semantic annotation (see Hints). Unknown hints → **`W0201`**. |
 | **`default`** | Optional textual initializer validated against type / range (`W0202` when range violated). |
@@ -116,6 +118,8 @@ Unknown tokens → **`W0101`** (ignored).
 
 Diagnostics carry **`code`**, **`severity`**, **`message`**, optional **`suggestion`**, plus **`filename`** / **`line`**.
 
+**Line numbers:** diagnostics report the **starting line of the offending element’s opening tag** (e.g. `<shader>`, `<uniform>`), derived from a best-effort scan of the raw source. Malformed or unusual XML may still yield inaccurate lines; treat **`message`** and **`code`** as authoritative.
+
 Severity tiers:
 
 | Tier | Meaning |
@@ -136,6 +140,7 @@ Registered codes (`ERROR_CODES` in source):
 | **E0301** | Error | Missing / empty `<fragment>` |
 | **E0302** | Error | Uniform missing `name` |
 | **E0303** | Error | Unknown uniform `type` |
+| **E0304** | Error | Invalid uniform `name` (identifier shape) |
 | **H0101** | Hazard | Lighting-style `render_mode` tokens ineffective on supported shader kinds |
 | **H0201** | Hazard | Contradictory blend modes combined |
 | **H0312** | Hazard | Builtin referenced outside allowed list for shader type |

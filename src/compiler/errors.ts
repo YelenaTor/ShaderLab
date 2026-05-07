@@ -13,6 +13,7 @@ export type ErrorCodeId =
   | "E0301"
   | "E0302"
   | "E0303"
+  | "E0304"
   | "H0101"
   | "H0201"
   | "H0312"
@@ -63,6 +64,10 @@ export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: str
   E0303: {
     severity: "Error",
     summary: "Unknown uniform `type`",
+  },
+  E0304: {
+    severity: "Error",
+    summary: "Invalid uniform `name` (use letters, digits, underscore only)",
   },
   H0101: {
     severity: "Hazard",
