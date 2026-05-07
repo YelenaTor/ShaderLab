@@ -4,10 +4,9 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-plugin-zip:
@@ -26,10 +25,12 @@ jobs:
       - name: Create plugin zip
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF_NAME" ]; then
-            VERSION="$(node -p "require('./package.json').version")"
-          fi
           ZIP_NAME="shaderlab-plugin-${VERSION}.zip"
           mkdir -p out
           zip -r "out/${ZIP_NAME}" dist package.json README.md LICENSE-MIT LICENSE-APACHE docs
           echo "Created out/${ZIP_NAME}"
+      - name: Create GitHub release with zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.zip
+          generate_release_notes: true
