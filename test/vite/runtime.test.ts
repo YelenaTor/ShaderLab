@@ -123,3 +123,39 @@ describe("ShaderLabRuntime mouse_position", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("ShaderLabRuntime attach options", () => {
+  it("caps backing store with maxDevicePixelRatio", () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    vi.stubGlobal("window", { devicePixelRatio: 2 });
+    vi.stubGlobal("requestAnimationFrame", vi.fn(() => 1));
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal("performance", { now: vi.fn(() => 1000) });
+
+    const cfg: ShaderInstanceConfig = {
+      shaderId: "demo",
+      vertexSource: "#version 300 es\nvoid main(){gl_Position=vec4(0.0);}",
+      fragmentSource: "#version 300 es\nprecision mediump float;\nout vec4 fragColor;\nvoid main(){fragColor=vec4(1.0);}",
+      metadata: {
+        shaderType: "canvas_item",
+        referencedBuiltins: [],
+        uniforms: [],
+        blendMode: null,
+        cullDisabled: false,
+      },
+    };
+    const gl = createMockGl();
+    const canvas = createCanvas(gl);
+    const rt = new ShaderLabRuntime(cfg);
+    rt.attach(canvas, { maxDevicePixelRatio: 1 });
+    expect(canvas.width).toBe(200);
+
+    rt.detach();
+    const canvas2 = createCanvas(gl);
+    const rt2 = new ShaderLabRuntime(cfg);
+    rt2.attach(canvas2);
+    expect(canvas2.width).toBe(400);
+    rt2.detach();
+    vi.unstubAllGlobals();
+  });
+});

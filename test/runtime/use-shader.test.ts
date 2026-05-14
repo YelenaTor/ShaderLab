@@ -24,13 +24,27 @@ describe("useShader", () => {
     const canvas = {} as HTMLCanvasElement;
     api.attach(canvas);
 
-    expect(bg.attach).toHaveBeenCalledWith(canvas);
+    expect(bg.attach).toHaveBeenCalledWith(canvas, {});
     expect(chroma.attach).toHaveBeenCalledWith(canvas, { feedFrom: bg });
     expect(bg.attach.mock.invocationCallOrder[0]).toBeLessThan(chroma.attach.mock.invocationCallOrder[0]!);
 
     api.detachAll();
     expect(chroma.detach).toHaveBeenCalled();
     expect(bg.detach).toHaveBeenCalled();
+  });
+
+  it("forwards shared attach options to feeder and post (feedFrom from slab wiring)", () => {
+    const bg = mockShader("canvas_item");
+    const chroma = mockShader("postprocess");
+    const api = useShader({ __shaders: { bg, chroma } });
+    const canvas = {} as HTMLCanvasElement;
+    api.attach(canvas, { maxDevicePixelRatio: 1.5, visibilityPause: true });
+    expect(bg.attach).toHaveBeenCalledWith(canvas, { maxDevicePixelRatio: 1.5, visibilityPause: true });
+    expect(chroma.attach).toHaveBeenCalledWith(canvas, {
+      maxDevicePixelRatio: 1.5,
+      visibilityPause: true,
+      feedFrom: bg,
+    });
   });
 
   it("throws when slab is only postprocess", () => {

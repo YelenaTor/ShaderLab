@@ -1,5 +1,5 @@
 {
-  "name": "shaderlab",
+  "name": "@yoruxiii/shaderlab",
   "version": "0.2.1-testing.0",
   "description": "Vite-first shader DSL plugin for the web (.slab → GLSL)",
   "type": "module",
@@ -60,7 +60,7 @@
     }
   },
   "bin": {
-    "shaderlab": "./dist/cli/index.js"
+    "shaderlab": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -69,6 +69,7 @@
     "LICENSE-MIT",
     "LICENSE-APACHE",
     "README.md",
+    "CHANGELOG.md",
     "CONTRIBUTING.md",
     "docs"
   ],
@@ -87,10 +88,18 @@
     "svelte": "^4.0.0 || ^5.0.0"
   },
   "peerDependenciesMeta": {
-    "@nuxt/kit": { "optional": true },
-    "react": { "optional": true },
-    "vue": { "optional": true },
-    "svelte": { "optional": true }
+    "@nuxt/kit": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@nuxt/kit": "^3.15.0",

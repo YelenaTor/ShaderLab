@@ -19,6 +19,25 @@ export interface ShaderInstance<TUniforms = Record<string, unknown>> {
 export interface AttachOptions {
   /** For `postprocess`: canvas_item instance that renders into the scene FBO first. */
   feedFrom?: ShaderInstance<Record<string, unknown>>;
+  /**
+   * When set, backing-store width/height use `min(devicePixelRatio, this)` so large-DPR
+   * preview canvases do not allocate oversized render targets / FBOs.
+   */
+  maxDevicePixelRatio?: number;
+  /**
+   * When `true`, pauses the animation loop while the canvas is outside the viewport
+   * (via `IntersectionObserver`). Default `false` preserves legacy always-on behaviour.
+   */
+  visibilityPause?: boolean;
+  /** Passed to `IntersectionObserver` as `rootMargin` when `visibilityPause` is enabled. */
+  visibilityRootMargin?: string;
+  /**
+   * When `false`, requests a WebGL2 context without a depth buffer (typical 2D slabs).
+   * Ignored if `webglContextAttributes.depth` is set explicitly.
+   */
+  depthBuffer?: boolean;
+  /** Merged over ShaderLab's default `getContext("webgl2", …)` attributes. */
+  webglContextAttributes?: Partial<WebGLContextAttributes>;
 }
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
@@ -65,6 +84,11 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
   private raf = 0;
   private t0 = 0;
   private resizeObs: ResizeObserver | null = null;
+  private resizeFlushRaf = 0;
+  private visibilityObs: IntersectionObserver | null = null;
+  private visible = true;
+  private lastAttachOptions: AttachOptions = {};
+  private uniformDirty: Uint8Array;
   private onMouse: ((e: MouseEvent) => void) | null = null;
   private slave = false;
   private partner: ShaderLabRuntime | null = null;
@@ -72,6 +96,9 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
   private sceneTex: WebGLTexture | null = null;
   private fbW = 0;
   private fbH = 0;
+  private lastBlendKey: string | undefined = undefined;
+  private lastCullDisabled: boolean | undefined = undefined;
+  private currentGlProgram: WebGLProgram | null = null;
 
   /** @internal Used by HMR to read payload from a fresh instance. */
   get config(): ShaderInstanceConfig {
@@ -82,7 +109,10 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     this.cfg = config;
     const store: Record<string, unknown> = {};
     this.uniforms = store;
-    for (const u of config.metadata.uniforms) {
+    const uniforms = config.metadata.uniforms;
+    this.uniformDirty = new Uint8Array(uniforms.length);
+    for (let i = 0; i < uniforms.length; i++) {
+      const u = uniforms[i]!;
       Object.defineProperty(store, u.name, {
         enumerable: true,
         configurable: true,
@@ -91,13 +121,57 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
           if (u.mousePosition) return;
           store[`__${u.name}`] = this.clampIfNeeded(u, v);
           if (this.gl && this.program) {
-            this.gl.useProgram(this.program);
+            this.bindProgram(this.gl);
             this.applyOneUniform(u, store[`__${u.name}`]);
+            this.uniformDirty[i] = 0;
+          } else {
+            this.uniformDirty[i] = 1;
           }
         },
       });
       store[`__${u.name}`] = u.mousePosition ? ([0, 0] as unknown) : undefined;
     }
+  }
+
+  private markAllUserUniformsDirty(): void {
+    this.uniformDirty.fill(1);
+  }
+
+  private markUniformDirty(index: number): void {
+    if (index >= 0 && index < this.uniformDirty.length) {
+      this.uniformDirty[index] = 1;
+    }
+  }
+
+  private invalidateProgramBinding(): void {
+    this.currentGlProgram = null;
+  }
+
+  private bindProgram(gl: WebGL2RenderingContext): void {
+    const p = this.program;
+    if (!p) return;
+    if (this.currentGlProgram !== p) {
+      gl.useProgram(p);
+      this.currentGlProgram = p;
+    }
+  }
+
+  private effectiveDevicePixelRatio(): number {
+    const dpr =
+      typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
+    const cap = this.lastAttachOptions.maxDevicePixelRatio;
+    if (cap != null && Number.isFinite(cap) && cap > 0) {
+      return Math.min(dpr, cap);
+    }
+    return dpr;
+  }
+
+  private scheduleResizeSync(): void {
+    if (this.resizeFlushRaf !== 0) return;
+    this.resizeFlushRaf = requestAnimationFrame(() => {
+      this.resizeFlushRaf = 0;
+      this.syncCanvasSize();
+    });
   }
 
   private linearizeColorIfNeeded(u: UniformBindingMeta, v: unknown): unknown {
@@ -136,6 +210,10 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
 
   /** Internal: share GL with a postprocess parent. */
   _ensureSlave(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement): void {
+    if (this.raf !== 0) {
+      cancelAnimationFrame(this.raf);
+      this.raf = 0;
+    }
     this.slave = true;
     this.gl = gl;
     this.canvas = canvas;
@@ -148,13 +226,24 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     if (this.raf !== 0) {
       this.detach();
     }
+    this.lastAttachOptions = { ...options };
+    this.lastBlendKey = undefined;
+    this.lastCullDisabled = undefined;
+    this.currentGlProgram = null;
+    this.visible = true;
+
     this.canvas = canvas;
-    this.gl = canvas.getContext("webgl2", {
+    const ctxAttrs: WebGLContextAttributes = {
       alpha: true,
       antialias: false,
       premultipliedAlpha: false,
       depth: true,
-    });
+      ...options?.webglContextAttributes,
+    };
+    if (options?.depthBuffer !== undefined) {
+      ctxAttrs.depth = options.depthBuffer;
+    }
+    this.gl = canvas.getContext("webgl2", ctxAttrs);
     if (!this.gl) {
       throw new Error("[shaderlab] WebGL2 context not available");
     }
@@ -162,6 +251,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     this.buildProgram();
     this.cacheLocations();
     this.applyDefaults();
+    this.markAllUserUniformsDirty();
 
     const meta = this.cfg.metadata;
     if (meta.shaderType === "postprocess") {
@@ -176,11 +266,12 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       this.ensureFbo();
     }
 
-    this.resizeObs = new ResizeObserver(() => this.syncCanvasSize());
+    this.resizeObs = new ResizeObserver(() => this.scheduleResizeSync());
     this.resizeObs.observe(canvas);
     this.syncCanvasSize();
 
-    for (const u of meta.uniforms) {
+    for (let i = 0; i < meta.uniforms.length; i++) {
+      const u = meta.uniforms[i]!;
       if (u.mousePosition) {
         this.onMouse = (e: MouseEvent) => {
           if (!this.canvas || !this.gl || !this.program) return;
@@ -188,30 +279,82 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
           const x = (e.clientX - rect.left) / rect.width;
           const y = 1.0 - (e.clientY - rect.top) / rect.height;
           (this.uniforms as Record<string, unknown>)[`__${u.name}`] = [x, y];
+          this.markUniformDirty(i);
         };
         canvas.addEventListener("mousemove", this.onMouse);
       }
     }
 
-    this.t0 = performance.now() / 1000;
-    const tick = () => {
-      this.drawFrame();
+    const startRaf = () => {
+      if (this.raf !== 0 || !this.gl) return;
+      this.t0 = performance.now() / 1000;
+      const tick = () => {
+        this.drawFrame();
+        this.raf = requestAnimationFrame(tick);
+      };
       this.raf = requestAnimationFrame(tick);
     };
-    this.raf = requestAnimationFrame(tick);
+
+    const useVis =
+      options?.visibilityPause === true && typeof IntersectionObserver !== "undefined";
+    if (useVis) {
+      this.visibilityObs = new IntersectionObserver(
+        (entries) => {
+          const vis = entries.some((e) => e.isIntersecting);
+          if (vis) {
+            if (!this.visible) {
+              this.visible = true;
+              this.syncCanvasSize();
+              startRaf();
+            }
+          } else {
+            if (this.visible) {
+              this.visible = false;
+              if (this.raf !== 0) {
+                cancelAnimationFrame(this.raf);
+                this.raf = 0;
+              }
+            }
+          }
+        },
+        { threshold: 0, rootMargin: options?.visibilityRootMargin ?? "0px" },
+      );
+      this.visibilityObs.observe(canvas);
+      const snap = this.visibilityObs.takeRecords();
+      if (snap.length) {
+        this.visible = snap.some((e) => e.isIntersecting);
+      } else {
+        this.visible = true;
+      }
+    }
+
+    if (!useVis || this.visible) {
+      startRaf();
+    }
   }
 
   detach(): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    if (this.resizeFlushRaf !== 0) {
+      cancelAnimationFrame(this.resizeFlushRaf);
+      this.resizeFlushRaf = 0;
+    }
     if (this.resizeObs && this.canvas) {
       this.resizeObs.unobserve(this.canvas);
     }
     this.resizeObs = null;
+    if (this.visibilityObs) {
+      this.visibilityObs.disconnect();
+      this.visibilityObs = null;
+    }
     if (this.canvas && this.onMouse) {
       this.canvas.removeEventListener("mousemove", this.onMouse);
     }
     this.onMouse = null;
+    if (this.canvas && this.gl) {
+      this.syncCanvasSize();
+    }
     if (this.gl) {
       if (this.program) {
         this.gl.deleteProgram(this.program);
@@ -233,6 +376,10 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     this.gl = null;
     this.canvas = null;
     this.partner = null;
+    this.lastBlendKey = undefined;
+    this.lastCullDisabled = undefined;
+    this.currentGlProgram = null;
+    this.lastAttachOptions = {};
   }
 
   _slabHotSwap(next: ShaderInstance<Record<string, unknown>>): void {
@@ -252,8 +399,12 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       this.program = null;
     }
     this.cfg = newCfg;
+    this.lastBlendKey = undefined;
+    this.lastCullDisabled = undefined;
+    this.invalidateProgramBinding();
     this.buildProgram();
     this.cacheLocations();
+    this.uniformDirty = new Uint8Array(newCfg.metadata.uniforms.length);
     for (const u of newCfg.metadata.uniforms) {
       const v = saved.get(`${u.name}\0${u.slabType}`);
       if (v !== undefined) {
@@ -261,8 +412,9 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       }
     }
     this.applyDefaults();
+    this.markAllUserUniformsDirty();
     if (this.program) {
-      gl.useProgram(this.program);
+      this.bindProgram(this.gl);
       this.applyUserUniforms();
     }
     const preserved = [...newCfg.metadata.uniforms].filter((u) =>
@@ -306,19 +458,21 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
 
   private applyDefaults(): void {
     const store = this.uniforms as Record<string, unknown>;
-    for (const u of this.cfg.metadata.uniforms) {
+    for (let i = 0; i < this.cfg.metadata.uniforms.length; i++) {
+      const u = this.cfg.metadata.uniforms[i]!;
       if (u.mousePosition) continue;
       if (store[`__${u.name}`] !== undefined) continue;
       const dv = parseDefaultValue(u.slabType, u.default);
       if (dv !== undefined) {
         store[`__${u.name}`] = this.clampIfNeeded(u, dv);
+        this.uniformDirty[i] = 1;
       }
     }
   }
 
   private syncCanvasSize(): void {
     if (!this.canvas || !this.gl) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = this.effectiveDevicePixelRatio();
     const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -379,11 +533,12 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       this.partner.drawScenePass(t, w, h);
+      this.invalidateProgramBinding();
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.useProgram(this.program);
+      this.bindProgram(gl);
       this.applyBlend(meta);
       this.applyCull(meta);
       this.applyBuiltinUniforms(t, w, h);
@@ -400,7 +555,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       gl.viewport(0, 0, w, h);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.useProgram(this.program);
+      this.bindProgram(gl);
       this.applyBlend(meta);
       this.applyCull(meta);
       this.applyBuiltinUniforms(t, w, h);
@@ -413,7 +568,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
   drawScenePass(t: number, w: number, h: number): void {
     if (!this.gl || !this.program) return;
     const gl = this.gl;
-    gl.useProgram(this.program);
+    this.bindProgram(gl);
     const meta = this.cfg.metadata;
     this.applyBlend(meta);
     this.applyCull(meta);
@@ -421,11 +576,16 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     this.applyUserUniforms();
     this.bindBuiltinTextures(gl, meta);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.currentGlProgram = this.program;
   }
 
   private applyBlend(meta: ShaderRuntimeMetadata): void {
     const gl = this.gl!;
     const m = meta.blendMode;
+    const key =
+      m === "add" ? "add" : m === "multiply" ? "multiply" : m === "premult_alpha" ? "premult_alpha" : "none";
+    if (key === this.lastBlendKey) return;
+    this.lastBlendKey = key;
     if (m === "add") {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
@@ -442,6 +602,8 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
 
   private applyCull(meta: ShaderRuntimeMetadata): void {
     const gl = this.gl!;
+    if (this.lastCullDisabled === meta.cullDisabled) return;
+    this.lastCullDisabled = meta.cullDisabled;
     if (meta.cullDisabled) {
       gl.disable(gl.CULL_FACE);
     } else {
@@ -464,9 +626,13 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
 
   private applyUserUniforms(): void {
     const store = this.uniforms as Record<string, unknown>;
-    for (const u of this.cfg.metadata.uniforms) {
+    const uniforms = this.cfg.metadata.uniforms;
+    for (let i = 0; i < uniforms.length; i++) {
+      if (!this.uniformDirty[i]) continue;
+      const u = uniforms[i]!;
       const v = store[`__${u.name}`];
       this.applyOneUniform(u, v);
+      this.uniformDirty[i] = 0;
     }
   }
 

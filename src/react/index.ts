@@ -11,7 +11,10 @@ export type { AttachOptions, ShaderInstance } from "../vite/runtime.js";
  * React hook — attaches all shaders in a `.slab` module to a canvas ref on mount.
  * Pass the **imported** module (with `__shaders`), not a string path.
  */
-export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabModule<T>): {
+export function useShader<T extends Record<string, ShaderInstance>>(
+  mod: SlabModule<T>,
+  attachOptions?: AttachOptions,
+): {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   shaders: T;
 } {
@@ -21,11 +24,11 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    api.attach(canvas);
+    api.attach(canvas, attachOptions);
     return () => {
       api.detachAll();
     };
-  }, [api, mod]);
+  }, [api, mod, attachOptions]);
 
   return { canvasRef, shaders: api.shaders };
 }

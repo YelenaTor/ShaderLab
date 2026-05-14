@@ -1,20 +1,28 @@
 # ShaderLab
 
 [![GitHub](https://img.shields.io/badge/GitHub-YelenaTor%2FShaderLab-181717?logo=github)](https://github.com/YelenaTor/ShaderLab)
-[![npm](https://img.shields.io/badge/npm-not%20published-lightgrey)](https://github.com/YelenaTor/ShaderLab)
+[![npm](https://img.shields.io/npm/v/@yoruxiii/shaderlab.svg?logo=npm&label=npm)](https://www.npmjs.com/package/@yoruxiii/shaderlab)
 [![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](./LICENSE-MIT)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](./package.json)
-[![CI](https://img.shields.io/badge/GitHub%20Actions-disabled-lightgrey)](https://github.com/YelenaTor/ShaderLab/actions)
+[![CI](https://img.shields.io/badge/GitHub%20Actions-enabled-success)](https://github.com/YelenaTor/ShaderLab/actions)
 
-Automated CI and npm publishing via Actions are **turned off** for now (workflows are manual/no-op stubs). Run **`npm test`**, **`npm run build`**, and **`npm run check:compiler-boundary`** locally — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+Automated **tag release builds** are enabled via GitHub Actions (`v*` tags). On each version-tag push, the release workflow runs checks/build and publishes a **plugin zip** as a GitHub Release asset (no Actions artifact upload for the zip).
+
+The package is also **published to npm** as **`@yoruxiii/shaderlab`** (see badge above). Prereleases use the **`testing`** dist-tag; install a specific version or range as your lockfile requires.
+
+Local verification before tagging or publishing: **`npm run check:compiler-boundary`**, **`npm run typecheck`**, **`npm test`**, **`npm run build`**.
+
+**Changelog:** [CHANGELOG.md](./CHANGELOG.md).
 
 **Mental model.** A `.slab` file is a **small schema-on-XML container**: declarative shader metadata plus embedded GLSL snippets. The **compiler** parses that intent, validates it, and emits **GLSL**, **runtime glue** (feeders, attach metadata, optional postprocess wiring), and **`*.slab.d.ts`** typings. Your app imports the emitted ES module; **`useShader` / `attach`** connect it to a canvas. Nothing here replaces a full engine pipeline—the toolchain stays narrow on purpose.
 
 ShaderLab is a **shader authoring compiler toolchain**, **Vite-first** for adoption: the default integration is the Vite plugin and generated modules, not “only a plugin” in the sense of a cosmetic bundler tweak.
 
+ShaderLab is intentionally narrower than full 3D engines/frameworks: it focuses on authoring and validating shader modules, then integrating them cleanly into web-app pipelines, rather than shipping a full scene graph or game-engine runtime.
+
 **`.slab` is not generic XML.** The surface is a minimal, versioned tag set used as carrier syntax. Arbitrary XML features or open-ended schemas are out of scope; the grammar stays tight so tooling stays predictable.
 
-**Docs:** [Usage guide](./docs/USAGE.md) (versioned adoption / changelog-style expectations) · [Slab language reference](./docs/LANGUAGE.md) (grammar, builtins, diagnostics).
+**Docs:** [CHANGELOG.md](./CHANGELOG.md) · [Usage guide](./docs/USAGE.md) (versioned adoption) · [Slab language reference](./docs/LANGUAGE.md) (grammar, builtins, diagnostics).
 
 ### Compile pipeline
 
@@ -23,6 +31,17 @@ ShaderLab is a **shader authoring compiler toolchain**, **Vite-first** for adopt
 3. **Codegen** — vertex/fragment GLSL, runtime metadata, module exports.
 4. **Emit** — JS module + optional sibling **`*.slab.d.ts`** (plugin `dts` option).
 5. **Attach** — imported module consumed by `useShader` / framework bindings / manual `attach`.
+
+## What’s new in `0.2.x-testing`
+
+Highlights for **`0.2.1-testing.0`** (see [CHANGELOG.md](./CHANGELOG.md) for the full list):
+
+- **Shared template helpers**: common uniform/block logic and blend selection are centralized in `src/compiler/templates/shared.ts`, reducing template duplication.
+- **Improved diagnostic locations**: parser/validator now report best-effort opening-tag lines for `<shader>` / `<uniform>` instead of broadly defaulting to line 1.
+- **Stricter blend typing**: `BlendMode` is now strict (`"add" | "multiply" | "premult_alpha" | null`) with the dead `"normal"` path removed.
+- **Release automation**: GitHub Actions release workflow runs on `v*` tags and attaches a plugin zip to GitHub Releases.
+- **npm**: [`@yoruxiii/shaderlab`](https://www.npmjs.com/package/@yoruxiii/shaderlab) is installable from the registry (scoped name; use the `testing` tag for prereleases).
+- **Runtime attach options**: DPR cap, optional visibility-based pause, debounced resize, per-uniform upload reduction, optional WebGL context attributes; `useShader` forwards options to feeder + post.
 
 ### Glossary
 
@@ -34,14 +53,30 @@ ShaderLab is a **shader authoring compiler toolchain**, **Vite-first** for adopt
 | **Hint** | Uniform annotation (`hint="..."`) influencing typings and runtime feeding semantics. |
 | **`render_mode`** | Declarative raster/blend/depth flags; unknown tokens warn and are ignored. |
 
-### Shader types (0.1.x)
+### Shader types (0.2.x testing)
 
-The compiler and runtime **support `canvas_item` and `postprocess` only**. Other profile names you might see in forks or older drafts are **unknown `type` values here** — the compiler fails with **`E0203`** and a suggestion to use the two supported types (see [LANGUAGE.md](./docs/LANGUAGE.md)).
+The compiler and runtime currently support **`canvas_item`** and **`postprocess`** only. `spatial` is not implemented in core yet; unknown `type` values fail with **`E0203`** (see [LANGUAGE.md](./docs/LANGUAGE.md)).
 
 ## Install
 
+**Recommended (npm):**
+
 ```bash
-npm install shaderlab
+npm install @yoruxiii/shaderlab
+```
+
+Prereleases are published under the **`testing`** dist-tag; pin a version if you need reproducible builds:
+
+```bash
+npm install @yoruxiii/shaderlab@0.2.1-testing.0
+# or
+npm install @yoruxiii/shaderlab@testing
+```
+
+**From GitHub** (same sources as a tag; useful for forks or pre-tag commits):
+
+```bash
+npm install github:YelenaTor/ShaderLab#v0.2.1-testing.0
 ```
 
 Peer dependency: **Vite** `^5` or `^6` (the compiler and plugin run in Node during dev/build). Framework packages (`react`, `vue`, `svelte`, `@nuxt/kit`) are optional peers used only when you import those entry points.
@@ -50,12 +85,12 @@ Peer dependency: **Vite** `^5` or `^6` (the compiler and plugin run in Node duri
 
 | Import | Use |
 |--------|-----|
-| `shaderlab` | Browser/runtime: `useShader`, `createShaderInstance`, shared types |
-| `shaderlab/vite` | **`vite.config` only** — default-export Vite plugin (keeps Node/compiler out of app bundles) |
-| `shaderlab/react`, `shaderlab/vue`, `shaderlab/svelte` | Framework hooks/components/actions |
-| `shaderlab/nuxt` | Nuxt module (`modules: ["shaderlab/nuxt"]`) |
-| `shaderlab/sveltekit`, `shaderlab/remix` | Same Vite plugin re-exported for convenient config imports |
-| `shaderlab/client` | Ambient types for `*.slab` (see [Typing](#typing)) |
+| `@yoruxiii/shaderlab` | Browser/runtime: `useShader`, `createShaderInstance`, shared types |
+| `@yoruxiii/shaderlab/vite` | **`vite.config` only** — default-export Vite plugin (keeps Node/compiler out of app bundles) |
+| `@yoruxiii/shaderlab/react`, `@yoruxiii/shaderlab/vue`, `@yoruxiii/shaderlab/svelte` | Framework hooks/components/actions |
+| `@yoruxiii/shaderlab/nuxt` | Nuxt module (`modules: ["@yoruxiii/shaderlab/nuxt"]`) |
+| `@yoruxiii/shaderlab/sveltekit`, `@yoruxiii/shaderlab/remix` | Same Vite plugin re-exported for convenient config imports |
+| `@yoruxiii/shaderlab/client` | Ambient types for `*.slab` (see [Typing](#typing)) |
 
 ## Vite setup
 
@@ -63,7 +98,7 @@ Register the plugin in `vite.config.ts` (or `.mts`):
 
 ```ts
 import { defineConfig } from "vite";
-import shaderlab from "shaderlab/vite";
+import shaderlab from "@yoruxiii/shaderlab/vite";
 
 export default defineConfig({
   plugins: [shaderlab()],
@@ -94,7 +129,7 @@ So you either pass the **whole module** into `useShader`, or import specific sha
 
 ```ts
 import hello from "./hello.slab";
-import { useShader } from "shaderlab";
+import { useShader } from "@yoruxiii/shaderlab";
 
 const canvas = document.querySelector("canvas")!;
 const { shaders, attach, detachAll } = useShader(hello);
@@ -114,13 +149,13 @@ chroma.attach(canvas, { feedFrom: bg });
 
 `useShader(mod)` expects the **imported module** (`SlabModule` / `__shaders`), **not** a string path. Spec-style `useShader("./path.slab")` is not supported.
 
-Postprocess shaders require `attach(canvas, { feedFrom: canvasItemInstance })`. See **`AttachOptions`** in the package typings.
+Postprocess shaders require `attach(canvas, { feedFrom: canvasItemInstance })`. See **`AttachOptions`** in the package typings; optional performance-related fields are documented in [USAGE.md](./docs/USAGE.md) under **Runtime discipline** → **Performance**.
 
 ## Framework bindings
 
-- **React** (`shaderlab/react`): `useShader(mod)`, `<ShaderLab module={mod} />`.
-- **Vue** (`shaderlab/vue`): `useShader(mod)`, `ShaderLab` component (`module` prop).
-- **Svelte** (`shaderlab/svelte`): `shaderlab` action — `<canvas use:shaderlab={{ module: mod }} />`. The package also exposes a `ShaderLab` component via the `svelte` export condition on this same entry (see `exports["./svelte"]` in `package.json`).
+- **React** (`@yoruxiii/shaderlab/react`): `useShader(mod, attachOptions?)`, `<ShaderLab module={mod} />`.
+- **Vue** (`@yoruxiii/shaderlab/vue`): `useShader(mod, attachOptions?)`, `ShaderLab` component (`module` prop).
+- **Svelte** (`@yoruxiii/shaderlab/svelte`): `shaderlab` action — `<canvas use:shaderlab={{ module: mod }} />`. The package also exposes a `ShaderLab` component via the `svelte` export condition on this same entry (see `exports["./svelte"]` in `package.json`).
 
 All of these expect the **imported `.slab` module**, not a path string.
 
@@ -128,13 +163,13 @@ All of these expect the **imported `.slab` module**, not a path string.
 
 ```ts
 export default defineNuxtConfig({
-  modules: ["shaderlab/nuxt"],
+  modules: ["@yoruxiii/shaderlab/nuxt"],
 });
 ```
 
 Optional module options are forwarded to the Vite plugin (e.g. `shaderlab: { dts: false }`).
 
-**SvelteKit / Remix:** add `import shaderlab from "shaderlab/sveltekit"` or `"shaderlab/remix"` beside the framework’s Vite plugin in `vite.config.ts` (see package JSDoc for snippets).
+**SvelteKit / Remix:** add `import shaderlab from "@yoruxiii/shaderlab/sveltekit"` or `"@yoruxiii/shaderlab/remix"` beside the framework’s Vite plugin in `vite.config.ts` (see package JSDoc for snippets).
 
 ## CLI
 
@@ -166,14 +201,14 @@ Detects the project stack and patches Vite (and related) config **safely**:
 For editor support on `*.slab` imports before or alongside emitted sidecars:
 
 ```ts
-/// <reference types="shaderlab/client" />
+/// <reference types="@yoruxiii/shaderlab/client" />
 ```
 
 Or in `tsconfig.json`:
 
 ```json
 "compilerOptions": {
-  "types": ["shaderlab/client"]
+  "types": ["@yoruxiii/shaderlab/client"]
 }
 ```
 
@@ -220,7 +255,7 @@ Diagnostics follow a fixed shape where possible: **file**, **line**, **`E…` / 
 | Severity | Meaning |
 |----------|---------|
 | **Warn** | Compile succeeds; something is ignored or questionable (typo’d `render_mode`, unknown `hint`, etc.). |
-| **Hazard** | Compile succeeds but behavior may surprise you (wrong shader type for a builtin, contradictory blend flags, lighting-related `render_mode` tokens that do nothing on 2D shader types in 0.1.x, runtime clamp). |
+| **Hazard** | Compile succeeds but behavior may surprise you (wrong shader type for a builtin, contradictory blend flags, lighting-related `render_mode` tokens that do nothing on current 2D shader types, runtime clamp). |
 | **Error** | Compile fails; output module is not emitted until fixed. |
 
 Examples (formatted like the compiler):
@@ -246,7 +281,7 @@ Examples (formatted like the compiler):
 ## Examples
 
 - **`examples/vanilla-vite`** — dev server, HMR, named `attach` usage; build is covered by integration tests.
-- **`examples/nuxt`** — placeholder directory only; use `shaderlab/nuxt` in a real Nuxt app (see above).
+- **`examples/nuxt`** — placeholder directory only; use `@yoruxiii/shaderlab/nuxt` in a real Nuxt app (see above).
 
 ## License
 

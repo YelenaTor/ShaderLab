@@ -27,7 +27,7 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
 
   return {
     shaders,
-    attach(canvas: HTMLCanvasElement, _options?: AttachOptions) {
+    attach(canvas: HTMLCanvasElement, options?: AttachOptions) {
       if (attached.length > 0) {
         throw new Error("[shaderlab] useShader().attach: already attached; call detachAll() first");
       }
@@ -37,14 +37,15 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
         throw new Error("[shaderlab] useShader: slab has no canvas_item shader to attach first");
       }
       const [, feeder] = feederEntry;
-      feeder.attach(canvas);
+      const { feedFrom: _omit, ...sharedOpts } = options ?? {};
+      feeder.attach(canvas, sharedOpts);
       attached.push(feeder);
 
       for (const [, sh] of entries) {
         if (sh === feeder) continue;
         const t = shaderType(sh);
         if (t === "postprocess") {
-          sh.attach(canvas, { feedFrom: feeder });
+          sh.attach(canvas, { ...sharedOpts, feedFrom: feeder });
           attached.push(sh);
         } else {
           throw new Error(

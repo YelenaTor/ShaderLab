@@ -1,0 +1,8 @@
+docs/.gitkeep
+
+# Repo-only files that should never publish
+.github/
+mcps/
+agent-transcripts/
+terminals/
+*.plan.md

@@ -18,7 +18,10 @@ export type { AttachOptions, ShaderInstance } from "../vite/runtime.js";
  * Vue composable — attaches all shaders in a `.slab` module to a canvas ref on mount.
  * Pass the **imported** module (with `__shaders`), not a string path.
  */
-export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabModule<T>): {
+export function useShader<T extends Record<string, ShaderInstance>>(
+  mod: SlabModule<T>,
+  attachOptions?: AttachOptions,
+): {
   canvasRef: Ref<HTMLCanvasElement | null>;
   shaders: T;
 } {
@@ -28,7 +31,7 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
   onMounted(() => {
     const canvas = canvasRef.value;
     if (!canvas) return;
-    api.attach(canvas);
+    api.attach(canvas, attachOptions);
   });
 
   onBeforeUnmount(() => {
