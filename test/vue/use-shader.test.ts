@@ -4,7 +4,7 @@ import { createApp, defineComponent, h } from "vue";
 import type { ShaderInstance } from "../../src/vite/runtime.js";
 import { useShader as useShaderVue } from "../../src/vue/index.js";
 
-function mockShader(type: "canvas_item" | "postprocess"): ShaderInstance {
+function mockShader(type: "canvas_item" | "postprocess" | "spatial"): ShaderInstance {
   const attach = vi.fn();
   const detach = vi.fn();
   return {

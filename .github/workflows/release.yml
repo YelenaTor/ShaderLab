@@ -4,12 +4,20 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - master
+      - Testing
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  build-plugin-zip:
+  github-release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,10 +35,35 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           ZIP_NAME="shaderlab-plugin-${VERSION}.zip"
           mkdir -p out
-          zip -r "out/${ZIP_NAME}" dist package.json README.md LICENSE-MIT LICENSE-APACHE docs
+          zip -r "out/${ZIP_NAME}" dist package.json README.md LICENSE-MIT LICENSE-APACHE docs CHANGELOG.md
           echo "Created out/${ZIP_NAME}"
       - name: Create GitHub release with zip
         uses: softprops/action-gh-release@v2
         with:
           files: out/*.zip
           generate_release_notes: true
+
+  npm-publish:
+    if: github.ref_type == 'branch' && (github.ref_name == 'master' || github.ref_name == 'Testing')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: npm run check:compiler-boundary
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "Testing" ]; then
+            npm publish --access public --tag testing
+          else
+            npm publish --access public
+          fi

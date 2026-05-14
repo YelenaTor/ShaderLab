@@ -17,7 +17,10 @@ export interface ShaderInstance<TUniforms = Record<string, unknown>> {
 }
 
 export interface AttachOptions {
-  /** For `postprocess`: canvas_item instance that renders into the scene FBO first. */
+  /**
+   * For `postprocess`, or for `spatial` when metadata `requiresCanvasFeed` is true:
+   * the upstream **`canvas_item`** instance that renders into the offscreen texture first.
+   */
   feedFrom?: ShaderInstance<Record<string, unknown>>;
   /**
    * When set, backing-store width/height use `min(devicePixelRatio, this)` so large-DPR
@@ -208,7 +211,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     return v;
   }
 
-  /** Internal: share GL with a postprocess parent. */
+  /** Internal: share GL with a postprocess or spatial (augment) parent that owns the RAF loop. */
   _ensureSlave(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement): void {
     if (this.raf !== 0) {
       cancelAnimationFrame(this.raf);
@@ -259,6 +262,21 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
           "[shaderlab] postprocess requires attach(canvas, { feedFrom: canvasItemInstance })",
+        );
+      }
+      this.partner = p;
+      this.partner._ensureSlave(this.gl, canvas);
+      this.ensureFbo();
+    } else if (meta.shaderType === "spatial" && meta.requiresCanvasFeed) {
+      const p = options?.feedFrom;
+      if (!(p instanceof ShaderLabRuntime)) {
+        throw new Error(
+          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires attach(canvas, { feedFrom: canvasItemInstance })",
+        );
+      }
+      if (p.cfg.metadata.shaderType !== "canvas_item") {
+        throw new Error(
+          "[shaderlab] spatial feedFrom must be a canvas_item shader runtime (got a different shader type)",
         );
       }
       this.partner = p;
@@ -448,6 +466,9 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     if (meta.shaderType === "postprocess") {
       names.add("u_slab_screen_texture");
     }
+    if (meta.shaderType === "spatial" && meta.requiresCanvasFeed) {
+      names.add("u_slab_canvas_texture");
+    }
     for (const u of meta.uniforms) {
       names.add(u.glslName);
     }
@@ -479,7 +500,11 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       this.canvas.width = w;
       this.canvas.height = h;
     }
-    if (this.cfg.metadata.shaderType === "postprocess") {
+    const sm = this.cfg.metadata;
+    if (
+      sm.shaderType === "postprocess" ||
+      (sm.shaderType === "spatial" && sm.requiresCanvasFeed)
+    ) {
       this.ensureFbo();
     }
   }
@@ -527,12 +552,18 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     const w = this.canvas.width;
     const h = this.canvas.height;
 
-    if (meta.shaderType === "postprocess" && this.partner && this.fbo && this.sceneTex) {
+    const sceneSamplePass =
+      ((meta.shaderType === "postprocess" && this.partner) ||
+        (meta.shaderType === "spatial" && meta.requiresCanvasFeed && this.partner)) &&
+      this.fbo &&
+      this.sceneTex;
+
+    if (sceneSamplePass) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
       gl.viewport(0, 0, w, h);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      this.partner.drawScenePass(t, w, h);
+      this.partner!.drawScenePass(t, w, h);
       this.invalidateProgramBinding();
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
@@ -543,10 +574,12 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       this.applyCull(meta);
       this.applyBuiltinUniforms(t, w, h);
       this.applyUserUniforms();
-      const unit = meta.screenTextureUnit ?? 0;
+      const isPost = meta.shaderType === "postprocess";
+      const unit = isPost ? meta.screenTextureUnit ?? 0 : meta.canvasTextureUnit ?? 0;
+      const uName = isPost ? "u_slab_screen_texture" : "u_slab_canvas_texture";
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
-      const loc = this.locations.get("u_slab_screen_texture");
+      const loc = this.locations.get(uName);
       if (loc) gl.uniform1i(loc, unit);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.bindTexture(gl.TEXTURE_2D, null);

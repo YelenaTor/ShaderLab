@@ -27,6 +27,31 @@ describe("compileSlab", () => {
     expect(r.output!.shaders[0]!.fragmentGlsl).toContain("SCREEN_TEXTURE");
   });
 
+  it("compiles spatial_ok_standalone.slab", () => {
+    const r = compileSlab(load("spatial_ok_standalone.slab"), "spatial_ok_standalone.slab");
+    expect(r.output).not.toBeNull();
+    expect(r.output!.shaders[0]!.metadata.shaderType).toBe("spatial");
+    expect(r.output!.shaders[0]!.metadata.requiresCanvasFeed).toBe(false);
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
+  it("compiles spatial_ok_augment.slab with requiresCanvasFeed metadata", () => {
+    const r = compileSlab(load("spatial_ok_augment.slab"), "spatial_ok_augment.slab");
+    expect(r.output).not.toBeNull();
+    const space = r.output!.shaders.find((s) => s.id === "space");
+    expect(space?.metadata.shaderType).toBe("spatial");
+    expect(space?.metadata.requiresCanvasFeed).toBe(true);
+    expect(space?.fragmentGlsl).toContain("u_slab_canvas_texture");
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
+  it("compiles canvas_vertex_25d_ok.slab (vertex gl_Position tweak)", () => {
+    const r = compileSlab(load("canvas_vertex_25d_ok.slab"), "canvas_vertex_25d_ok.slab");
+    expect(r.output).not.toBeNull();
+    expect(r.output!.shaders[0]!.vertexGlsl).toContain("gl_Position.xy +=");
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
   const errorCases: { file: string; code: string }[] = [
     { file: "e0101_missing_version.slab", code: "E0101" },
     { file: "e0102_bad_version.slab", code: "E0102" },
@@ -34,7 +59,6 @@ describe("compileSlab", () => {
     { file: "e0202_dup_id.slab", code: "E0202" },
     { file: "e0203_bad_type.slab", code: "E0203" },
     { file: "e0203_typo_spacial.slab", code: "E0203" },
-    { file: "e0203_unsupported_spatial.slab", code: "E0203" },
     { file: "e0301_empty_fragment.slab", code: "E0301" },
     { file: "e0301_missing_fragment_tag.slab", code: "E0301" },
     { file: "e0302_uniform_no_name.slab", code: "E0302" },
@@ -65,8 +89,8 @@ describe("compileSlab", () => {
     });
   }
 
-  it("emits H0312 for SCREEN_TEXTURE in canvas_item but still compiles", () => {
-    const r = compileSlab(load("h0312_screen_in_canvas.slab"), "h0312_screen_in_canvas.slab");
+  it("emits H0312 for CANVAS_TEXTURE in canvas_item but still compiles", () => {
+    const r = compileSlab(load("h0312_canvas_in_canvas_item.slab"), "h0312_canvas_in_canvas_item.slab");
     expect(r.output).not.toBeNull();
     expect(r.diagnostics.some((d) => d.code === "H0312")).toBe(true);
   });
@@ -124,7 +148,7 @@ describe("compileSlab", () => {
 
   it("rejects unknown shader type values with E0203", () => {
     const src = `<shaderlab version="1.0">
-  <shader id="x" type="spatial">
+  <shader id="x" type="not_a_real_shader_kind">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
   </shader>
 </shaderlab>`;
@@ -144,6 +168,12 @@ COLOR.xy += RESOLUTION / max(RESOLUTION, vec2(1.0));
   <shader id="post_ok" type="postprocess">
     <fragment><![CDATA[
 COLOR = texture(SCREEN_TEXTURE, SCREEN_UV) + vec4(TIME / max(RESOLUTION.x, 1.0));
+    ]]></fragment>
+  </shader>
+  <shader id="spatial_ok" type="spatial">
+    <fragment><![CDATA[
+COLOR = vec4(UV, VERTEX_COLOR.a, 1.0) + vec4(vec3(TIME * 0.01), 0.0);
+COLOR.xy += RESOLUTION / max(RESOLUTION, vec2(1.0));
     ]]></fragment>
   </shader>
 </shaderlab>`;

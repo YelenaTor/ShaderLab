@@ -27,7 +27,7 @@ Each `<shader>` declares one compiled programme pair plus metadata.
 | Attribute | Required | Meaning |
 |-----------|----------|---------|
 | **`id`** | Yes | Identifier exported from emitted JS (`^[a-zA-Z_][a-zA-Z0-9_]*$`). **`E0201`** / **`E0202`** when missing or duplicated. |
-| **`type`** | Yes | **`canvas_item`** or **`postprocess`**. Anything else → **`E0203`**. |
+| **`type`** | Yes | **`canvas_item`**, **`postprocess`**, or **`spatial`**. Anything else → **`E0203`**. |
 | **`render_mode`** | No | Whitespace or comma separated tokens (unordered set); unknown tokens → **`W0101`**. |
 
 Children:
@@ -38,7 +38,9 @@ Children:
 | `<vertex>` | Optional CDATA GLSL merged into the generated vertex shader (see **Vertex body order** below). |
 | `<fragment>` | **Required** non-empty CDATA fragment stage (`E0301` if missing / empty). |
 
-**Vertex body order (0.1.x).** The templates emit a small `main()` that sets up **`slab_pos`**, **`UV`**, **`VERTEX_COLOR`** (canvas_item only), and an initial **`gl_Position`**, then append your `<vertex>` body **after** that setup. Your code may read those varyings and may **overwrite `gl_Position`** to customize the fullscreen triangle. The name **`slab_pos`** is an implementation detail, not a stable public builtin. A future opt-in (for example a dedicated `render_mode`) could skip the default setup entirely if full custom vertex `main()` becomes a priority.
+**Vertex body order (0.3.x).** The templates emit a small `main()` that sets up **`slab_pos`**, **`UV`**, **`VERTEX_COLOR`** (where the template exposes it), and an initial **`gl_Position`**, then append your `<vertex>` body **after** that setup. Your code may read those varyings and may **overwrite `gl_Position`** to customize the fullscreen triangle — this is the supported way to do **vertex-forward 2.5D** on **`canvas_item`**: shear, parallax-style UV offsets, or subtle NDC tweaks before the fragment stage. If you pass custom data vertex → fragment, declare matching `out` / `in` pairs yourself (normal GLSL300 rules apply). The name **`slab_pos`** is an implementation detail, not a stable public builtin. A future opt-in (for example a dedicated `render_mode`) could skip the default setup entirely if full custom vertex `main()` becomes a priority.
+
+**Worked sketch (2.5D UV carry):** in `<vertex>`, after defaults, `out vec2 myUv; myUv = UV + vec2(0.02 * sin(TIME), 0.0);` and declare `in vec2 myUv;` in `<fragment>` — pair varyings explicitly; the slab compiler does not invent names beyond **`UV`** / **`VERTEX_COLOR`** unless you add them.
 
 ### Uniform rows
 
@@ -57,7 +59,7 @@ Children:
 
 ## Shader types and builtins
 
-Only **`canvas_item`** and **`postprocess`** compile.
+The compiler recognises **`canvas_item`**, **`postprocess`**, and **`spatial`**.
 
 The compiler scans vertex + fragment bodies for **builtin identifiers** (identifier boundaries). Usage outside allowed sets triggers **`H0312`**.
 
@@ -75,11 +77,24 @@ Allowed builtins:
 
 `SCREEN_UV`, `SCREEN_TEXTURE`, `COLOR`, `TIME`, `RESOLUTION`.
 
-Typical role: full-screen passes sampling the companion **`canvas_item`** render target supplied via runtime **`feedFrom`**.
+Typical role: full-screen passes sampling the companion **`canvas_item`** render target supplied via runtime **`attach(canvas, { feedFrom: canvasItem })`** (same FBO pattern as **`spatial`** augment).
+
+### `spatial`
+
+**Standalone:** same draw model as **`canvas_item`** (fullscreen triangle to the default framebuffer) — omit **`CANVAS_*`** builtins.
+
+**Augment (canvas-fed):** when the shader references **`CANVAS_TEXTURE`** and/or **`CANVAS_UV`**, the compiler sets metadata **`requiresCanvasFeed: true`**. At runtime, **`attach(canvas, { feedFrom: canvasItemInstance })`** is required, where **`canvasItemInstance`** is a **`canvas_item`** shader from the same (or compatible) wiring. The runtime renders the feeder into an offscreen texture, then runs **`spatial`** sampling it (mirrors **`postprocess`** vs **`SCREEN_*`**).
+
+Allowed builtins (0.3.x):
+
+- Always: `UV`, `COLOR`, `VERTEX_COLOR`, `TIME`, `RESOLUTION`.
+- Augment-only: `CANVAS_UV`, `CANVAS_TEXTURE` (template maps **`CANVAS_UV`** to the fullscreen varying aligned with the offscreen pass, like **`SCREEN_UV`** for post).
+
+PBR-style names reserved in the lexer (**`WORLD_POSITION`**, **`VIEW_DIRECTION`**, etc.) remain **invalid** in **`spatial`** until a future template + runtime contract exists — they still produce **`H0312`**.
 
 ### Names that appear in tooling lists but are invalid here
 
-The lexer recognises additional uppercase tokens for forward-looking grammar parity (for example names familiar from wider ShaderLab roadmaps). **They must not appear** in sources targeting **`canvas_item`** / **`postprocess`** unless/until a future release explicitly allows them — stray mentions produce **`H0312`**.
+The lexer recognises additional uppercase tokens for forward-looking grammar parity (for example names familiar from wider ShaderLab roadmaps). **They must not appear** in sources targeting a given **`type`** unless that release’s allowlist includes them — stray mentions produce **`H0312`**.
 
 ---
 
@@ -108,7 +123,7 @@ Recognised tokens today:
 |-------|----------------------------------|
 | **`blend_add`**, **`blend_multiply`**, **`blend_premult_alpha`** | Mutually exclusive blend prescriptions (`H0201` if multiple combined). |
 | **`cull_disabled`** | Disables face culling when emitted runtime applies state. |
-| **`unshaded`**, **`depth_draw_never`**, **`diffuse_toon`**, **`specular_disabled`** | Parsed but **no expanding spatial/lighting pipeline ships yet** — combinations with supported shader kinds emit **`H0101`** hazards explaining no runtime effect for 2D paths. |
+| **`unshaded`**, **`depth_draw_never`**, **`diffuse_toon`**, **`specular_disabled`** | Parsed but **no lighting pipeline ships for `canvas_item` / `postprocess` / `spatial` in 0.3** — combinations emit **`H0101`** hazards explaining no runtime lighting effect. |
 
 Unknown tokens → **`W0101`** (ignored).
 
@@ -159,7 +174,7 @@ Compiler helpers **must** emit via `diagnostic(...)` so severities cannot drift 
 Successful compilation yields, per shader:
 
 - Generated **vertex / fragment GLSL** strings (WebGL-targeted templates).
-- **`ShaderRuntimeMetadata`** (shader kind, uniforms binding plans, blend/cull flags, builtin references).
+- **`ShaderRuntimeMetadata`** (shader kind, uniforms binding plans, blend/cull flags, builtin references; for **`spatial`** augment, **`requiresCanvasFeed`** and **`canvasTextureUnit`** when **`CANVAS_TEXTURE`** is used).
 - Consumption path emits ES modules plus optional sibling **`*.slab.d.ts`** (see plugin pipeline).
 
 There is **no** separate runtime bytecode — ShaderLab expands slabs into GLSL + JS metadata consumed directly by `ShaderLabRuntime`.

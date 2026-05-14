@@ -13,7 +13,7 @@ ShaderLab targets teams already shipping **Vite-built front ends** who want **de
 Reasonable examples:
 
 - Full-screen or inset **canvas effects**, typography overlays, image manipulation passes on quads.
-- **Two-tier setups**: draw UI or gameplay-related visuals into one shader-backed canvas (`canvas_item`), then optionally route through a **`postprocess`** shader reading **`SCREEN_TEXTURE`** for grading, blur-ish kernels you maintain yourself, etc.
+- **Two-tier setups**: draw UI or gameplay-related visuals into one shader-backed canvas (`canvas_item`), then optionally route through a **`postprocess`** shader reading **`SCREEN_TEXTURE`** for grading, blur-ish kernels you maintain yourself, etc. In **0.3+**, a **`spatial`** shader can sample that same feeder via **`CANVAS_TEXTURE`** (see version guide) instead of or in addition to post — not all combinations are auto-wired in **`useShader`** yet.
 
 Poor fits:
 
@@ -30,14 +30,24 @@ Constraints worth accepting upfront:
 
 Use **`npm ls @yoruxiii/shaderlab`** (and **`peerDependency`** warnings from npm) as ground truth for **your** tree; tables below describe upstream ShaderLab releases.
 
+### 0.3.x testing (`@yoruxiii/shaderlab@^0.3`)
+
+| Topic | Behaviour |
+|--------|-----------|
+| **Peer tooling** | Unchanged from 0.2.x — Vite **`^5` or `^6`**, Node **`≥18`**. |
+| **Compiled shader kinds** | **`canvas_item`**, **`postprocess`**, and **`spatial`** (`<shader type="…">`). |
+| **`spatial`** | **Standalone:** no **`CANVAS_*`** builtins — fullscreen pass like **`canvas_item`**. **Augment:** references **`CANVAS_TEXTURE`** / **`CANVAS_UV`** → metadata **`requiresCanvasFeed`**; runtime **`attach(canvas, { feedFrom: canvasItem })`** required (feeder must be **`canvas_item`**). Uses the same offscreen FBO draw pattern as **`postprocess`**. |
+| **`useShader` auto-wiring** | **`canvas_item` + `postprocess`** (unchanged), **`canvas_item` only**, **`spatial` only** (standalone), or **`canvas_item` + one canvas-fed `spatial`**. **Not supported:** **`postprocess` together with canvas-fed `spatial`** in one slab module (throws); use manual **`attach`** if you need a custom chain. |
+| **Vertex 2.5D** | Documented for **`canvas_item`**: user `<vertex>` runs after default **`gl_Position`** — overwrite clip position or emit custom varyings (see [LANGUAGE.md](./LANGUAGE.md)). |
+
 ### 0.2.x testing (`@yoruxiii/shaderlab@^0.2`)
 
-Current-generation behaviour:
+Prior-generation behaviour (still accurate for older pins):
 
 | Topic | Behaviour |
 |--------|-----------|
 | **Peer tooling** | Vite **`^5` or `^6`** (`@yoruxiii/shaderlab/vite`); optional peers only when importing bindings (`react`, `vue`, `svelte`, `@nuxt/kit`). Node **`≥18`**. |
-| **Compiled shader kinds** | Only **`canvas_item`** and **`postprocess`** (`<shader type="…">`). `spatial` is intentionally out of scope in current core builds. Unknown kinds fail with **`E0203`** (see [LANGUAGE.md](./LANGUAGE.md)). |
+| **Compiled shader kinds** | Only **`canvas_item`** and **`postprocess`** (`<shader type="…">`). Unknown kinds fail with **`E0203`**. |
 | **Emitted artefacts** | One ES module per `.slab` import (`__shaders` plus named exports). Optional sibling **`*.slab.d.ts`** via plugin option **`dts`** (defaults documented with package README). |
 | **Runtime API** | `useShader(importedModule)` takes the **bundler-produced module**, never a filesystem path string. Post-process shaders attach with **`feedFrom`** pointing at the upstream **`canvas_item`** instance produced by the same tooling stack. |
 | **Recent quality changes** | Shared template helpers; diagnostic line mapping for `<shader>` / `<uniform>`; strict `BlendMode`; runtime attach options (DPR cap, visibility pause, debounced resize, uniform dirty uploads) — see [CHANGELOG.md](../CHANGELOG.md). |
@@ -61,13 +71,13 @@ npm install @yoruxiii/shaderlab
 For a specific prerelease or to follow the `testing` dist-tag:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.2.1-testing.0
+npm install @yoruxiii/shaderlab@0.3.0-testing.0
 ```
 
 Alternatively, install from a **GitHub tag** (same tree as the release tag):
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.2.1-testing.0
+npm install github:YelenaTor/ShaderLab#v0.3.0-testing.0
 ```
 
 Register once per **Vite** configuration (`vite.config.ts` / `.mts`):
@@ -158,7 +168,21 @@ Details remain in **[README.md](../README.md)** (“Vanilla runtime”, “Desig
 
 ## npm publish notes (maintainers)
 
-For each **npm** release (after the package is on the registry):
+### CI (GitHub Actions)
+
+Workflow: **[`.github/workflows/release.yml`](../.github/workflows/release.yml)**.
+
+| Git push | npm |
+|----------|-----|
+| **`master`** | `npm publish --access public` → **`latest`** |
+| **`Testing`** | `npm publish --access public --tag testing` |
+| Tag **`v*`** | No npm (GitHub Release + plugin zip only) |
+
+**Secret (required for branch publishes):** In the GitHub repo, open **Settings → Secrets and variables → Actions** and add **`NPM_TOKEN`** (npm granular or classic token with publish access to `@yoruxiii/shaderlab`). The workflow passes it as `NODE_AUTH_TOKEN`. See [Using secrets in GitHub Actions](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
+
+Each publish needs a **new** semver in `package.json` (npm rejects the same version twice).
+
+### Manual checklist (each release)
 
 1. Ensure version strings are updated in:
    - `package.json`
@@ -172,5 +196,6 @@ For each **npm** release (after the package is on the registry):
    - `npm run build`
 4. Validate package payload:
    - `npm pack --dry-run`
-5. Publish (example for a scoped public prerelease):
-   - `npm publish --access public --tag testing`
+5. **Push `master` or `Testing`** to trigger CI publish, or publish locally:
+   - `npm publish --access public` (stable / `latest`)
+   - `npm publish --access public --tag testing` (prerelease line)

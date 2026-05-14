@@ -3,7 +3,7 @@
  * The compiler layer must not import from vite/, adapters/, or cli/.
  */
 
-export type ShaderType = "canvas_item" | "postprocess";
+export type ShaderType = "canvas_item" | "postprocess" | "spatial";
 
 export type RenderMode =
   | "unshaded"
@@ -84,6 +84,13 @@ export interface ShaderRuntimeMetadata {
   textureBuiltinUnit?: number | null;
   /** WebGL texture unit for builtin `SCREEN_TEXTURE` (`postprocess` only). */
   screenTextureUnit?: number | null;
+  /**
+   * When `true`, `spatial` samples a paired `canvas_item` via `CANVAS_TEXTURE` / `CANVAS_UV`;
+   * runtime `attach` must pass `{ feedFrom: canvasItemInstance }`.
+   */
+  requiresCanvasFeed?: boolean;
+  /** WebGL texture unit for builtin `CANVAS_TEXTURE` (`spatial` augment only). */
+  canvasTextureUnit?: number | null;
 }
 
 /** Per-shader codegen result (GLSL + metadata). */

@@ -9,7 +9,7 @@ import { createRoot } from "react-dom/client";
 import type { ShaderInstance } from "../../src/vite/runtime.js";
 import { useShader as useShaderReact } from "../../src/react/index.js";
 
-function mockShader(type: "canvas_item" | "postprocess"): ShaderInstance {
+function mockShader(type: "canvas_item" | "postprocess" | "spatial"): ShaderInstance {
   const attach = vi.fn();
   const detach = vi.fn();
   return {

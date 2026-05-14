@@ -19,7 +19,7 @@ const UNIFORM_TYPES = new Set<UniformType>([
   "sampler2D",
 ]);
 
-const SHADER_TYPES = new Set<ShaderType>(["canvas_item", "postprocess"]);
+const SHADER_TYPES = new Set<ShaderType>(["canvas_item", "postprocess", "spatial"]);
 
 /** Same shape as shader `id`; uniform names must match so GLSL `u_*` names stay aligned with slab identifiers. */
 const UNIFORM_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

@@ -4,7 +4,7 @@ import { diagnostic } from "./errors.js";
 import type { ShaderlabDiagnostic } from "./errors.js";
 import { isHintRecognized, parseDefaultValue, parseHint, valueInRange } from "./hints.js";
 
-const VALID_SHADER_TYPES = new Set<string>(["canvas_item", "postprocess"]);
+const VALID_SHADER_TYPES = new Set<string>(["canvas_item", "postprocess", "spatial"]);
 
 const VALID_RENDER = new Set<RenderMode>([
   "unshaded",
@@ -79,7 +79,7 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
           `Unknown \`type\` value "${sh.typeRaw}"`,
           filename,
           sh.line ?? 1,
-          'Use type="canvas_item" or type="postprocess"',
+          'Use type="canvas_item", type="postprocess", or type="spatial"',
         ),
       );
     }
@@ -137,7 +137,7 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
           diagnostics.push(
             diagnostic(
               "H0101",
-              `\`${mode}\` render mode has no effect for type="${sh.typeRaw}" (ShaderLab 0.1 targets canvas_item and postprocess only)`,
+              `\`${mode}\` render mode has no effect for type="${sh.typeRaw}" (no lighting pipeline for canvas_item, postprocess, or spatial in 0.3)`,
               filename,
               sh.line ?? 1,
             ),
@@ -192,6 +192,8 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
         let suggestion: string | undefined;
         if (b === "SCREEN_TEXTURE" || b === "SCREEN_UV") {
           suggestion = "Use type=\"postprocess\" for SCREEN_TEXTURE / SCREEN_UV";
+        } else if (b === "CANVAS_TEXTURE" || b === "CANVAS_UV") {
+          suggestion = "Use type=\"spatial\" for CANVAS_TEXTURE / CANVAS_UV (canvas augment mode)";
         } else if (b === "TEXTURE") {
           suggestion = "Use type=\"canvas_item\" for TEXTURE";
         }

@@ -3,7 +3,9 @@ import type { ShaderType } from "./types.js";
 /** Builtin token names — semantics per shader kind: docs/LANGUAGE.md (“Shader types and builtins”). Longest match first for scanning. */
 export const ALL_BUILTINS_ORDERED = [
   "SCREEN_TEXTURE",
+  "CANVAS_TEXTURE",
   "SCREEN_UV",
+  "CANVAS_UV",
   "VERTEX_COLOR",
   "WORLD_POSITION",
   "VIEW_DIRECTION",
@@ -31,6 +33,16 @@ const CANVAS_ITEM = new Set<string>([
 ]);
 
 const POSTPROCESS = new Set<string>(["SCREEN_UV", "SCREEN_TEXTURE", "COLOR", "TIME", "RESOLUTION"]);
+
+const SPATIAL = new Set<string>([
+  "UV",
+  "COLOR",
+  "VERTEX_COLOR",
+  "TIME",
+  "RESOLUTION",
+  "CANVAS_UV",
+  "CANVAS_TEXTURE",
+]);
 
 /** Returns referenced builtins found in source (word-boundary scan). */
 export function scanBuiltins(source: string): Set<string> {
@@ -62,6 +74,7 @@ function escapeRegExp(s: string): string {
 export function builtinsAllowedForType(type: ShaderType): Set<string> {
   if (type === "canvas_item") return CANVAS_ITEM;
   if (type === "postprocess") return POSTPROCESS;
+  if (type === "spatial") return SPATIAL;
   throw new Error(`unsupported shader type: ${type}`);
 }
 

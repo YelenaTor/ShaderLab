@@ -6,7 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-- Nothing yet on `main` after the latest tagged release; see [GitHub Releases](https://github.com/YelenaTor/ShaderLab/releases) for tag notes.
+- **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
+
+## [0.3.0-testing.0] - 2026-05-14
+
+### Added
+
+- **`type="spatial"`** shader kind: strict builtin set (`UV`, `COLOR`, `VERTEX_COLOR`, `TIME`, `RESOLUTION`, and augment-only **`CANVAS_UV`** / **`CANVAS_TEXTURE`**). Compiler emits **`requiresCanvasFeed`** / **`canvasTextureUnit`** metadata when augment builtins are referenced.
+- **Runtime**: **`spatial`** standalone draws like **`canvas_item`**; **`spatial`** augment reuses the **`postprocess`** offscreen FBO + fullscreen sampling path with **`u_slab_canvas_texture`**.
+- **`useShader`**: auto-wires **`canvas_item` + one canvas-fed `spatial`**, **`spatial` only** (standalone), and existing **`canvas_item` + `postprocess`**; **throws** if **`postprocess`** and canvas-fed **`spatial`** appear in the same module (multi-stage compositor deferred).
+
+### Changed
+
+- **Diagnostics**: **`E0203`** suggestions and **`H0101`** / **`H0312`** messaging include **`spatial`**; registry **`H0101`** summary text broadened to all supported shader kinds.
+
+### Documentation
+
+- **[LANGUAGE.md](./docs/LANGUAGE.md)**: **`spatial`** builtins and contracts; **vertex-forward 2.5D** on **`canvas_item`** (worked sketch).
+- **[README.md](./README.md)** / **[USAGE.md](./docs/USAGE.md)**: version guide **`0.3.x`**, install pin examples.
 
 ## [0.2.1-testing.0] - 2026-05-14
 

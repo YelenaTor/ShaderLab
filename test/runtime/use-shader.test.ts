@@ -2,14 +2,22 @@ import { describe, expect, it, vi } from "vitest";
 import { useShader } from "../../src/runtime/use-shader.js";
 import type { ShaderInstance } from "../../src/vite/runtime.js";
 
-function mockShader(type: "canvas_item" | "postprocess"): ShaderInstance {
+function mockShader(
+  type: "canvas_item" | "postprocess" | "spatial",
+  opts?: { requiresCanvasFeed?: boolean },
+): ShaderInstance {
   const attach = vi.fn();
   const detach = vi.fn();
   return {
     uniforms: {},
     attach,
     detach,
-    config: { metadata: { shaderType: type } },
+    config: {
+      metadata: {
+        shaderType: type,
+        ...(opts?.requiresCanvasFeed !== undefined ? { requiresCanvasFeed: opts.requiresCanvasFeed } : {}),
+      },
+    },
   } as unknown as ShaderInstance;
 }
 
@@ -47,9 +55,35 @@ describe("useShader", () => {
     });
   });
 
+  it("attaches canvas_item then spatial augment with feedFrom", () => {
+    const bg = mockShader("canvas_item");
+    const space = mockShader("spatial", { requiresCanvasFeed: true });
+    const api = useShader({ __shaders: { bg, space } });
+    const canvas = {} as HTMLCanvasElement;
+    api.attach(canvas);
+    expect(bg.attach).toHaveBeenCalledWith(canvas, {});
+    expect(space.attach).toHaveBeenCalledWith(canvas, { feedFrom: bg });
+  });
+
+  it("throws when postprocess and canvas-fed spatial appear together", () => {
+    const bg = mockShader("canvas_item");
+    const space = mockShader("spatial", { requiresCanvasFeed: true });
+    const pp = mockShader("postprocess");
+    const api = useShader({ __shaders: { bg, space, pp } });
+    expect(() => api.attach({} as HTMLCanvasElement)).toThrow(/not supported in 0\.3\.0-testing/);
+  });
+
   it("throws when slab is only postprocess", () => {
     const api = useShader({ __shaders: { x: mockShader("postprocess") } });
     expect(() => api.attach({} as HTMLCanvasElement)).toThrow(/no canvas_item shader to attach first/);
+  });
+
+  it("allows standalone spatial as the only shader", () => {
+    const s = mockShader("spatial", { requiresCanvasFeed: false });
+    const api = useShader({ __shaders: { s } });
+    const canvas = {} as HTMLCanvasElement;
+    api.attach(canvas);
+    expect(s.attach).toHaveBeenCalledWith(canvas, {});
   });
 
   it("throws on second attach without detach", () => {

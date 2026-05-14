@@ -71,7 +71,8 @@ export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: str
   },
   H0101: {
     severity: "Hazard",
-    summary: "Lighting-related render_mode flags have no effect on canvas_item or postprocess",
+    summary:
+      "Lighting-related render_mode flags have no effect on canvas_item, postprocess, or spatial (no lighting pipeline in 0.3)",
   },
   H0201: {
     severity: "Hazard",

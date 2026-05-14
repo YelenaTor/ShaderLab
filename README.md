@@ -6,9 +6,17 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](./package.json)
 [![CI](https://img.shields.io/badge/GitHub%20Actions-enabled-success)](https://github.com/YelenaTor/ShaderLab/actions)
 
-Automated **tag release builds** are enabled via GitHub Actions (`v*` tags). On each version-tag push, the release workflow runs checks/build and publishes a **plugin zip** as a GitHub Release asset (no Actions artifact upload for the zip).
+**GitHub Actions** ([`.github/workflows/release.yml`](./.github/workflows/release.yml)):
 
-The package is also **published to npm** as **`@yoruxiii/shaderlab`** (see badge above). Prereleases use the **`testing`** dist-tag; install a specific version or range as your lockfile requires.
+| Trigger | What happens |
+|---------|----------------|
+| Push tag **`v*`** | Checks, build, **plugin zip** attached to a **GitHub Release** (no npm from this job). |
+| Push branch **`master`** | Same checks + build, then **`npm publish --access public`** → **`latest`** on npm. |
+| Push branch **`Testing`** | Same checks + build, then **`npm publish --access public --tag testing`**. |
+
+npm publishes require a repository secret **`NPM_TOKEN`** (GitHub: **Settings → Secrets and variables → Actions**). It is never stored in the repo. See [GitHub: Using secrets in Actions](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
+
+The package on npm is **`@yoruxiii/shaderlab`** (see badge above). Bump **`package.json` / `package-lock.json`** before each publish — npm rejects duplicate versions.
 
 Local verification before tagging or publishing: **`npm run check:compiler-boundary`**, **`npm run typecheck`**, **`npm test`**, **`npm run build`**.
 
@@ -32,6 +40,12 @@ ShaderLab is intentionally narrower than full 3D engines/frameworks: it focuses 
 4. **Emit** — JS module + optional sibling **`*.slab.d.ts`** (plugin `dts` option).
 5. **Attach** — imported module consumed by `useShader` / framework bindings / manual `attach`.
 
+## What’s new in `0.3.0-testing`
+
+- **`type="spatial"`** — third shader kind: **standalone** fullscreen passes, or **augment** mode sampling a paired **`canvas_item`** via **`CANVAS_TEXTURE` / `CANVAS_UV`** and **`attach(canvas, { feedFrom })`** (same FBO pattern as **`postprocess`**).
+- **`useShader`**: supports **`canvas_item` + `spatial` augment**, **`canvas_item` only**, **`spatial` only**, and the existing **`canvas_item` + `postprocess`** slab. **Combining `postprocess` with canvas-fed `spatial` in one auto-wired module throws** until a multi-stage compositor exists.
+- **Docs**: vertex-forward **2.5D** on **`canvas_item`** (see [LANGUAGE.md](./docs/LANGUAGE.md) — vertex body order).
+
 ## What’s new in `0.2.x-testing`
 
 Highlights for **`0.2.1-testing.0`** (see [CHANGELOG.md](./CHANGELOG.md) for the full list):
@@ -49,13 +63,13 @@ Highlights for **`0.2.1-testing.0`** (see [CHANGELOG.md](./CHANGELOG.md) for the
 |------|---------|
 | **`.slab`** | ShaderLab source file: one module, multiple `<shader>` entries when needed. |
 | **Macro expansion** | Deterministic lowering from declarative slab intent to emitted GLSL + glue (not a user Turing-complete preprocessor). |
-| **Builtin** | Compiler-provided symbols (e.g. `SCREEN_TEXTURE`, `TEXTURE`) valid only for certain shader types. |
+| **Builtin** | Compiler-provided symbols (e.g. `SCREEN_TEXTURE`, `TEXTURE`, `CANVAS_TEXTURE`) valid only for certain shader types. |
 | **Hint** | Uniform annotation (`hint="..."`) influencing typings and runtime feeding semantics. |
 | **`render_mode`** | Declarative raster/blend/depth flags; unknown tokens warn and are ignored. |
 
-### Shader types (0.2.x testing)
+### Shader types (0.3.0 testing)
 
-The compiler and runtime currently support **`canvas_item`** and **`postprocess`** only. `spatial` is not implemented in core yet; unknown `type` values fail with **`E0203`** (see [LANGUAGE.md](./docs/LANGUAGE.md)).
+The compiler and runtime support **`canvas_item`**, **`postprocess`**, and **`spatial`**. Unknown `type` values fail with **`E0203`**. See [LANGUAGE.md](./docs/LANGUAGE.md) for builtin matrices and **`useShader`** wiring rules.
 
 ## Install
 
@@ -68,7 +82,7 @@ npm install @yoruxiii/shaderlab
 Prereleases are published under the **`testing`** dist-tag; pin a version if you need reproducible builds:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.2.1-testing.0
+npm install @yoruxiii/shaderlab@0.3.0-testing.0
 # or
 npm install @yoruxiii/shaderlab@testing
 ```
@@ -76,7 +90,7 @@ npm install @yoruxiii/shaderlab@testing
 **From GitHub** (same sources as a tag; useful for forks or pre-tag commits):
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.2.1-testing.0
+npm install github:YelenaTor/ShaderLab#v0.3.0-testing.0
 ```
 
 Peer dependency: **Vite** `^5` or `^6` (the compiler and plugin run in Node during dev/build). Framework packages (`react`, `vue`, `svelte`, `@nuxt/kit`) are optional peers used only when you import those entry points.
@@ -125,7 +139,7 @@ So you either pass the **whole module** into `useShader`, or import specific sha
 
 ## Vanilla runtime
 
-**Recommended:** import the module and pass it to `useShader` (handles feeder + postprocess ordering).
+**Recommended:** import the module and pass it to `useShader` (handles feeder + **`postprocess`** / **`spatial`** augment ordering where auto-wiring applies).
 
 ```ts
 import hello from "./hello.slab";
