@@ -191,4 +191,47 @@ describe("3-stage compositor runtime", () => {
     bg.detach();
     vi.unstubAllGlobals();
   });
+
+  it("nested spatial drawScenePass calls prior canvas-fed spatial then canvas", () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const gl = createMockGl();
+    const canvas = createCanvas(gl);
+
+    const bg = new ShaderLabRuntime(minimalConfig("canvas_item"));
+    const spaceA = new ShaderLabRuntime(
+      minimalConfig("spatial", {
+        requiresCanvasFeed: true,
+        canvasTextureUnit: 0,
+        referencedBuiltins: ["CANVAS_TEXTURE"],
+      }),
+    );
+    const spaceB = new ShaderLabRuntime(
+      minimalConfig("spatial", {
+        requiresCanvasFeed: true,
+        canvasTextureUnit: 0,
+        referencedBuiltins: ["CANVAS_TEXTURE"],
+      }),
+    );
+    const canvasDraw = vi.spyOn(bg, "drawScenePass");
+    const spaceADraw = vi.spyOn(spaceA, "drawScenePass");
+
+    bg.attach(canvas);
+    spaceA.attach(canvas, { feedFrom: bg });
+    spaceB.attach(canvas, { feedFrom: spaceA });
+
+    const postFbo = {} as WebGLFramebuffer;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, postFbo);
+    spaceB.drawScenePass(0, 64, 64);
+
+    expect(spaceADraw).toHaveBeenCalled();
+    expect(canvasDraw).toHaveBeenCalled();
+    expect(gl.framebufferBindings[gl.framebufferBindings.length - 1]).toBe(postFbo);
+
+    spaceB.detach();
+    spaceA.detach();
+    bg.detach();
+    vi.unstubAllGlobals();
+  });
 });

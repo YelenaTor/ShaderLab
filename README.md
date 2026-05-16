@@ -53,11 +53,11 @@ Each `.slab` file becomes an ES module with **`__shaders`** (all instances) and 
 
 | `type` | Role |
 |--------|------|
-| **`canvas_item`** | Draw to the canvas; builtins like `TEXTURE`, `UV`, `TIME`. |
+| **`canvas_item`** | Draw to the canvas; builtins like `TEXTURE`, `UV`, `TIME`, and optional **`PARALLAX_UV`** with `hint="parallax_layer"`. |
 | **`postprocess`** | Full-screen pass sampling upstream via `SCREEN_TEXTURE` / `SCREEN_UV` (`feedFrom`). |
-| **`spatial`** | Standalone fullscreen pass, or augment mode with `CANVAS_TEXTURE` / `CANVAS_UV` when paired with a `canvas_item`. |
+| **`spatial`** | Standalone fullscreen pass, or augment mode with `CANVAS_TEXTURE` / `CANVAS_UV` (samples the immediate upstream pass). |
 
-`useShader` wires multi-pass slabs in pipeline order: **`canvas_item` → spatial (augment) → `postprocess`** (XML order in the file does not matter). Details: [LANGUAGE.md](./docs/LANGUAGE.md), [USAGE.md](./docs/USAGE.md).
+`useShader` wires multi-pass slabs in pipeline order: **`canvas_item` → spatial (augment)×N → `postprocess`** (XML order in the file does not matter). Details: [LANGUAGE.md](./docs/LANGUAGE.md), [USAGE.md](./docs/USAGE.md).
 
 ## Entry points
 

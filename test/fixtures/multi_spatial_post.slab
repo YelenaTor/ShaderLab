@@ -1,0 +1,14 @@
+<shaderlab version="1.0">
+  <shader id="pp" type="postprocess">
+    <fragment><![CDATA[COLOR = texture(SCREEN_TEXTURE, SCREEN_UV);]]></fragment>
+  </shader>
+  <shader id="spaceB" type="spatial">
+    <fragment><![CDATA[COLOR = texture(CANVAS_TEXTURE, CANVAS_UV) * vec4(1.0, 0.95, 0.9, 1.0);]]></fragment>
+  </shader>
+  <shader id="spaceA" type="spatial">
+    <fragment><![CDATA[COLOR = texture(CANVAS_TEXTURE, CANVAS_UV);]]></fragment>
+  </shader>
+  <shader id="bg" type="canvas_item">
+    <fragment><![CDATA[COLOR = vec4(UV, 0.0, 1.0);]]></fragment>
+  </shader>
+</shaderlab>

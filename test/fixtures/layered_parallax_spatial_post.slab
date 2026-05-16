@@ -1,0 +1,24 @@
+<shaderlab version="1.0">
+  <shader id="pp" type="postprocess">
+    <fragment><![CDATA[
+COLOR = texture(SCREEN_TEXTURE, SCREEN_UV);
+COLOR.a = 1.0;
+    ]]></fragment>
+  </shader>
+  <shader id="cloud" type="spatial">
+    <fragment><![CDATA[
+vec2 uv = CANVAS_UV + vec2(sin(TIME * 0.3) * 0.02, 0.05);
+vec4 base = texture(CANVAS_TEXTURE, uv);
+COLOR = vec4(base.rgb, base.a * 0.85);
+    ]]></fragment>
+  </shader>
+  <shader id="sky" type="canvas_item">
+    <uniforms>
+      <uniform name="layer_depth" type="float" hint="parallax_layer" default="0.35" />
+    </uniforms>
+    <fragment><![CDATA[
+vec3 grad = mix(vec3(0.05, 0.08, 0.2), vec3(0.2, 0.35, 0.55), PARALLAX_UV.y);
+COLOR = vec4(grad, 1.0);
+    ]]></fragment>
+  </shader>
+</shaderlab>

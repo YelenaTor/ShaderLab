@@ -1,6 +1,13 @@
 import { scanBuiltinStages } from "../builtins.js";
-import type { CompiledShader, ShaderAst, ShaderRuntimeMetadata } from "../types.js";
-import { buildUniformBlock, pickBlend } from "./shared.js";
+import type { CompiledShader, ShaderAst, ShaderRuntimeMetadata, UniformAst } from "../types.js";
+import { glslUniformName, buildUniformBlock, pickBlend } from "./shared.js";
+
+/** Documented in LANGUAGE.md — horizontal parallax scale for PARALLAX_UV. */
+const PARALLAX_TIME_SCALE = 0.05;
+
+function findParallaxLayerUniform(uniforms: readonly UniformAst[]): UniformAst | undefined {
+  return uniforms.find((u) => u.type === "float" && u.hint?.trim() === "parallax_layer");
+}
 
 export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
   const vertexSrc = sh.vertexBody ?? "";
@@ -9,8 +16,13 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
   const vb = stages.vertex;
   const fb = stages.fragment;
 
+  const parallaxUniform = findParallaxLayerUniform(sh.uniforms);
+  const wantsParallax = stages.combined.has("PARALLAX_UV") || parallaxUniform != null;
+  const parallaxGlsl = parallaxUniform ? glslUniformName(parallaxUniform.name) : null;
+
   const vs: string[] = ["#version 300 es", "precision mediump float;"];
-  if (vb.has("TIME")) {
+  const needsTimeForParallax = wantsParallax && (vb.has("TIME") || parallaxGlsl != null);
+  if (vb.has("TIME") || needsTimeForParallax) {
     vs.push("uniform float u_slab_time;");
     vs.push("#define TIME u_slab_time");
   }
@@ -18,13 +30,28 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
     vs.push("uniform vec2 u_slab_resolution;");
     vs.push("#define RESOLUTION u_slab_resolution");
   }
+  if (parallaxGlsl) {
+    vs.push(`uniform float ${parallaxGlsl};`);
+  }
   vs.push("out vec2 UV;");
+  if (wantsParallax) {
+    vs.push("out vec2 PARALLAX_UV;");
+  }
   vs.push("out vec4 VERTEX_COLOR;");
   vs.push("void main() {");
   vs.push(
     "  vec2 slab_pos = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)) * 2.0 - 1.0;",
   );
   vs.push("  UV = slab_pos * 0.5 + 0.5;");
+  if (wantsParallax) {
+    if (parallaxGlsl) {
+      vs.push(
+        `  PARALLAX_UV = UV + vec2(${parallaxGlsl} * TIME * ${PARALLAX_TIME_SCALE}, 0.0);`,
+      );
+    } else {
+      vs.push(`  PARALLAX_UV = UV + vec2(TIME * ${PARALLAX_TIME_SCALE}, 0.0);`);
+    }
+  }
   vs.push("  VERTEX_COLOR = vec4(1.0);");
   vs.push("  gl_Position = vec4(slab_pos, 0.0, 1.0);");
   if (vertexSrc.trim() !== "") {
@@ -38,7 +65,11 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
   const userUniformDeclFs = userUniforms.decls;
   let texUnit = userUniforms.nextTexUnit;
 
-  const fs: string[] = ["#version 300 es", "precision mediump float;", "in vec2 UV;", "in vec4 VERTEX_COLOR;", "out vec4 fragColor;"];
+  const fs: string[] = ["#version 300 es", "precision mediump float;", "in vec2 UV;"];
+  if (wantsParallax) {
+    fs.push("in vec2 PARALLAX_UV;");
+  }
+  fs.push("in vec4 VERTEX_COLOR;", "out vec4 fragColor;");
   for (const line of userUniformDeclFs) {
     fs.push(line);
   }
@@ -66,8 +97,11 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
   const fragmentGlsl = fs.join("\n");
 
   const referenced = [...stages.combined].filter((b) =>
-    ["UV", "COLOR", "TEXTURE", "VERTEX_COLOR", "TIME", "RESOLUTION"].includes(b),
+    ["UV", "PARALLAX_UV", "COLOR", "TEXTURE", "VERTEX_COLOR", "TIME", "RESOLUTION"].includes(b),
   );
+  if (wantsParallax && !referenced.includes("PARALLAX_UV")) {
+    referenced.push("PARALLAX_UV");
+  }
 
   const metadata: ShaderRuntimeMetadata = {
     shaderType: "canvas_item",

@@ -18,6 +18,7 @@ export const ALL_BUILTINS_ORDERED = [
   "NORMAL",
   "TANGENT",
   "TEXTURE",
+  "PARALLAX_UV",
   "COLOR",
   "TIME",
   "UV",
@@ -25,6 +26,7 @@ export const ALL_BUILTINS_ORDERED = [
 
 const CANVAS_ITEM = new Set<string>([
   "UV",
+  "PARALLAX_UV",
   "COLOR",
   "TEXTURE",
   "VERTEX_COLOR",

@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
 
+## [0.3.2-testing.0] - 2026-05-15
+
+### Added
+
+- **Parallax helper (`canvas_item`)**: `hint="parallax_layer"` on a **`float`** uniform plus builtin **`PARALLAX_UV`** (vertex varying: `UV + vec2(layer_depth * TIME * 0.05, 0.0)`). **`H0312`** if used outside **`canvas_item`**.
+- **Multi-spatial compositor**: **`useShader`** wires **`canvas_item → spatial×N → postprocess`** (compile-order spatial augments, cap **8**). Runtime **`spatial` `feedFrom`** accepts **`canvas_item`** or a prior canvas-fed **`spatial`**.
+- **Fixtures**: `parallax_layer_canvas.slab`, `layered_parallax_spatial_post.slab`, `multi_spatial_post.slab`.
+
+### Changed
+
+- **Docs**: layered 2.5D / floating look via parallax + spatial augment; **`CANVAS_TEXTURE` / `CANVAS_UV`** sample the **immediate upstream** pass (canvas or prior spatial).
+
 ## [0.3.1-testing.0] - 2026-05-14
 
 ### Added

@@ -85,7 +85,9 @@ function isValidPostFeedPartner(partner: ShaderLabRuntime): boolean {
 }
 
 function isValidSpatialAugmentFeedPartner(partner: ShaderLabRuntime): boolean {
-  return partner.config.metadata.shaderType === "canvas_item";
+  const t = partner.config.metadata.shaderType;
+  if (t === "canvas_item") return true;
+  return t === "spatial" && partner.config.metadata.requiresCanvasFeed === true;
 }
 
 export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>> {
@@ -292,7 +294,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       }
       if (!isValidSpatialAugmentFeedPartner(p)) {
         throw new Error(
-          "[shaderlab] spatial feedFrom must be a canvas_item shader runtime (got a different shader type)",
+          "[shaderlab] spatial feedFrom must be a canvas_item or canvas-fed spatial shader runtime (got a different shader type)",
         );
       }
       this.partner = p;

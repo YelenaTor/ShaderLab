@@ -65,6 +65,20 @@ describe("useShader", () => {
     expect(space.attach).toHaveBeenCalledWith(canvas, { feedFrom: bg });
   });
 
+  it("attaches canvas_item → spatial×N → postprocess chain", () => {
+    const bg = mockShader("canvas_item");
+    const spaceA = mockShader("spatial", { requiresCanvasFeed: true });
+    const spaceB = mockShader("spatial", { requiresCanvasFeed: true });
+    const pp = mockShader("postprocess");
+    const api = useShader({ __shaders: { bg, spaceA, spaceB, pp } });
+    const canvas = {} as HTMLCanvasElement;
+    api.attach(canvas);
+    expect(bg.attach).toHaveBeenCalledWith(canvas, {});
+    expect(spaceA.attach).toHaveBeenCalledWith(canvas, { feedFrom: bg });
+    expect(spaceB.attach).toHaveBeenCalledWith(canvas, { feedFrom: spaceA });
+    expect(pp.attach).toHaveBeenCalledWith(canvas, { feedFrom: spaceB });
+  });
+
   it("attaches canvas_item → spatial → postprocess in pipeline order (ignores slab key order)", () => {
     const bg = mockShader("canvas_item");
     const space = mockShader("spatial", { requiresCanvasFeed: true });

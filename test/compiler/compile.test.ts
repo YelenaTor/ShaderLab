@@ -45,6 +45,40 @@ describe("compileSlab", () => {
     expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
   });
 
+  it("compiles parallax_layer_canvas.slab with PARALLAX_UV varying", () => {
+    const r = compileSlab(load("parallax_layer_canvas.slab"), "parallax_layer_canvas.slab");
+    expect(r.output).not.toBeNull();
+    const sh = r.output!.shaders[0]!;
+    expect(sh.vertexGlsl).toContain("PARALLAX_UV");
+    expect(sh.vertexGlsl).toContain("u_layer_depth");
+    expect(sh.fragmentGlsl).toContain("in vec2 PARALLAX_UV");
+    expect(sh.metadata.referencedBuiltins).toContain("PARALLAX_UV");
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
+  it("compiles layered_parallax_spatial_post.slab and multi_spatial_post.slab", () => {
+    const layered = compileSlab(
+      load("layered_parallax_spatial_post.slab"),
+      "layered_parallax_spatial_post.slab",
+    );
+    expect(layered.output).not.toBeNull();
+    expect(layered.output!.shaders).toHaveLength(3);
+    expect(layered.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+
+    const multi = compileSlab(load("multi_spatial_post.slab"), "multi_spatial_post.slab");
+    expect(multi.output).not.toBeNull();
+    expect(multi.output!.shaders).toHaveLength(4);
+    const spatials = multi.output!.shaders.filter((s) => s.metadata.requiresCanvasFeed);
+    expect(spatials).toHaveLength(2);
+    expect(multi.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
+  it("emits H0312 for PARALLAX_UV in spatial", () => {
+    const r = compileSlab(load("h0312_parallax_in_spatial.slab"), "h0312_parallax_in_spatial.slab");
+    expect(r.output).not.toBeNull();
+    expect(r.diagnostics.some((d) => d.code === "H0312")).toBe(true);
+  });
+
   it("compiles chain_canvas_spatial_post.slab (three-stage slab)", () => {
     const r = compileSlab(load("chain_canvas_spatial_post.slab"), "chain_canvas_spatial_post.slab");
     expect(r.output).not.toBeNull();

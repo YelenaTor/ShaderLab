@@ -36,9 +36,13 @@ Use **`npm ls @yoruxiii/shaderlab`** (and **`peerDependency`** warnings from npm
 |--------|-----------|
 | **Peer tooling** | Unchanged from 0.2.x — Vite **`^5` or `^6`**, Node **`≥18`**. |
 | **Compiled shader kinds** | **`canvas_item`**, **`postprocess`**, and **`spatial`** (`<shader type="…">`). |
-| **`spatial`** | **Standalone:** no **`CANVAS_*`** builtins — fullscreen pass like **`canvas_item`**. **Augment:** references **`CANVAS_TEXTURE`** / **`CANVAS_UV`** → metadata **`requiresCanvasFeed`**; runtime **`attach(canvas, { feedFrom: canvasItem })`** required (feeder must be **`canvas_item`**). Uses the same offscreen FBO draw pattern as **`postprocess`**. |
-| **`useShader` auto-wiring** | Sorted pipeline: **`canvas_item` → spatial (augment) → postprocess`** (at most one of each). **`useShader` ignores `<shader>` order** in the file. Still **not supported:** multiple spatial augments or spatial→spatial chains (use manual **`attach`**). |
-| **Vertex 2.5D** | Documented for **`canvas_item`**: user `<vertex>` runs after default **`gl_Position`** — overwrite clip position or emit custom varyings (see [LANGUAGE.md](./LANGUAGE.md)). |
+| **`spatial`** | **Standalone:** no **`CANVAS_*`** builtins — fullscreen pass like **`canvas_item`**. **Augment:** references **`CANVAS_TEXTURE`** / **`CANVAS_UV`** → metadata **`requiresCanvasFeed`**; runtime **`attach(canvas, { feedFrom: canvasItem \| priorSpatial })`**. Uses the same offscreen FBO draw pattern as **`postprocess`**. |
+| **`useShader` auto-wiring** | Sorted pipeline: **`canvas_item` → spatial (augment)×N → postprocess`**. **`useShader` ignores `<shader>` order** in the file; multiple canvas-fed spatials run in **compile emission order** (up to **8**). |
+| **Vertex 2.5D / parallax** | Documented for **`canvas_item`**: user `<vertex>` after default setup, or **`PARALLAX_UV`** + **`hint="parallax_layer"`** (see [LANGUAGE.md](./LANGUAGE.md)). Layered “floating” looks combine parallax background + **`spatial`** augment + optional **`postprocess`**. |
+
+### 0.3.2-testing (`@yoruxiii/shaderlab@0.3.2-testing.0`)
+
+**Parallax** on **`canvas_item`** (`PARALLAX_UV`, `parallax_layer` hint). **Multi-spatial** chains and **`spatial` → `spatial`** `feedFrom` in runtime / **`useShader`**.
 
 ### 0.3.1-testing (`@yoruxiii/shaderlab@0.3.1-testing.0`)
 
@@ -75,13 +79,13 @@ npm install @yoruxiii/shaderlab
 For a specific prerelease or to follow the `testing` dist-tag:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.3.1-testing.0
+npm install @yoruxiii/shaderlab@0.3.2-testing.0
 ```
 
 Alternatively, install from a **GitHub tag** (same tree as the release tag):
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.3.1-testing.0
+npm install github:YelenaTor/ShaderLab#v0.3.2-testing.0
 ```
 
 Register once per **Vite** configuration (`vite.config.ts` / `.mts`):

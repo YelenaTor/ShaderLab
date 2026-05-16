@@ -196,6 +196,8 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
           suggestion = "Use type=\"spatial\" for CANVAS_TEXTURE / CANVAS_UV (canvas augment mode)";
         } else if (b === "TEXTURE") {
           suggestion = "Use type=\"canvas_item\" for TEXTURE";
+        } else if (b === "PARALLAX_UV") {
+          suggestion = "Use type=\"canvas_item\" for PARALLAX_UV (with optional hint=\"parallax_layer\" on a float uniform)";
         }
         diagnostics.push(
           diagnostic(

@@ -6,6 +6,8 @@ export type SlabModule<T extends Record<string, ShaderInstance> = Record<string,
   readonly __shaders: T;
 };
 
+const MAX_SPATIAL_AUG = 8;
+
 /** Read shader type without importing `ShaderLabRuntime` (avoids ESM circularity with `runtime.ts`). */
 function shaderType(inst: ShaderInstance): ShaderRuntimeMetadata["shaderType"] {
   const cfg = (inst as unknown as { config?: { metadata?: { shaderType?: string } } }).config;
@@ -56,9 +58,9 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
       if (canvasItems.length > 1) {
         throw new Error("[shaderlab] useShader: multiple canvas_item shaders in one slab — attach manually");
       }
-      if (spatialAug.length > 1) {
+      if (spatialAug.length > MAX_SPATIAL_AUG) {
         throw new Error(
-          "[shaderlab] useShader: at most one spatial shader using CANVAS_TEXTURE / CANVAS_UV per slab; use manual attach for deeper chains",
+          `[shaderlab] useShader: at most ${MAX_SPATIAL_AUG} canvas-fed spatial shaders per slab`,
         );
       }
       if (posts.length > 1) {
@@ -95,7 +97,7 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
 
       const stages: ShaderInstance[] = [];
       if (canvasItem) stages.push(canvasItem);
-      if (spatialAug[0]) stages.push(spatialAug[0][1]);
+      for (const [, s] of spatialAug) stages.push(s);
       if (posts[0]) stages.push(posts[0][1]);
 
       const { feedFrom: _omit, ...sharedOpts } = options ?? {};

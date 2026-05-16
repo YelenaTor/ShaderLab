@@ -67,9 +67,13 @@ The compiler scans vertex + fragment bodies for **builtin identifiers** (identif
 
 Allowed builtins:
 
-`UV`, `COLOR`, `TEXTURE`, `VERTEX_COLOR`, `TIME`, `RESOLUTION`.
+`UV`, `PARALLAX_UV`, `COLOR`, `TEXTURE`, `VERTEX_COLOR`, `TIME`, `RESOLUTION`.
 
 Typical role: draw-to-screen fragment passes that sample app-supplied textures (`TEXTURE`) or operate on UV/time.
+
+**Parallax / layered 2.5D:** attach **`hint="parallax_layer"`** to a **`float`** uniform (suggested range **0.0–1.0**). When that hint is present and/or the shader references **`PARALLAX_UV`**, the template emits a vertex varying:
+
+`PARALLAX_UV = UV + vec2(layer_depth * TIME * 0.05, 0.0)` (horizontal drift; **`layer_depth`** is the uniform value, or **`TIME * 0.05`** alone if no hint uniform). Use **`PARALLAX_UV`** in the fragment for scrolling backgrounds; stack a canvas-fed **`spatial`** augment on top for foreground layers that sample **`CANVAS_TEXTURE`** / **`CANVAS_UV`** (immediate upstream). See fixtures **`parallax_layer_canvas.slab`** and **`layered_parallax_spatial_post.slab`**.
 
 ### `postprocess`
 
@@ -83,7 +87,7 @@ Typical role: full-screen passes sampling the companion **`canvas_item`** render
 
 **Standalone:** same draw model as **`canvas_item`** (fullscreen triangle to the default framebuffer) — omit **`CANVAS_*`** builtins.
 
-**Augment (canvas-fed):** when the shader references **`CANVAS_TEXTURE`** and/or **`CANVAS_UV`**, the compiler sets metadata **`requiresCanvasFeed: true`**. At runtime, **`attach(canvas, { feedFrom: canvasItemInstance })`** is required, where **`canvasItemInstance`** is a **`canvas_item`** shader from the same (or compatible) wiring. The runtime renders the feeder into an offscreen texture, then runs **`spatial`** sampling it (mirrors **`postprocess`** vs **`SCREEN_*`**).
+**Augment (canvas-fed):** when the shader references **`CANVAS_TEXTURE`** and/or **`CANVAS_UV`**, the compiler sets metadata **`requiresCanvasFeed: true`**. At runtime, **`attach(canvas, { feedFrom: upstream })`** is required, where **`upstream`** is a **`canvas_item`** or a prior canvas-fed **`spatial`** instance. **`CANVAS_*`** builtins sample that **immediate upstream** pass (not “3D canvas” geometry). The runtime renders the feeder into an offscreen texture, then runs **`spatial`** sampling it (mirrors **`postprocess`** vs **`SCREEN_*`**). Standalone **`spatial`** (no **`CANVAS_*`**) remains a convenience fullscreen pass; augment mode is the intended helper for layered composition.
 
 Allowed builtins (0.3.x):
 
@@ -97,10 +101,10 @@ PBR-style names reserved in the lexer (**`WORLD_POSITION`**, **`VIEW_DIRECTION`*
 When a single `.slab` file exports multiple shaders, **`useShader(importedModule)`** wires passes in **pipeline order** (not XML order):
 
 1. **`canvas_item`** (base feeder)
-2. **Canvas-fed `spatial`** (at most one), if present
+2. **Canvas-fed `spatial`** augments (zero or more, in **compile emission order**, max **8** via **`useShader`**)
 3. **`postprocess`**, if present
 
-**`postprocess`** `feedFrom` may point at the **`canvas_item`** or at a canvas-fed **`spatial`**; **`SCREEN_TEXTURE`** samples whichever stage is immediately upstream. Multiple spatial augments or deeper graphs are not auto-wired — attach instances manually.
+**`postprocess`** `feedFrom` may point at the **`canvas_item`** or at the **last** canvas-fed **`spatial`** in the chain; **`SCREEN_TEXTURE`** samples whichever stage is immediately upstream. Deeper or custom graphs — attach instances manually.
 
 ### Names that appear in tooling lists but are invalid here
 
@@ -118,6 +122,7 @@ Recognised patterns:
 | **`color`** | Influences emitted typings and runtime linearisation for vec colour tuples. |
 | **`texture`**, **`albedo`**, **`normal_map`** | Texture feeder semantics + sampler typings. |
 | **`mouse_position`** | Runtime-owned **`vec2`**; typings expose readonly tuples; uniforms ignore manual writes at runtime. |
+| **`parallax_layer`** | **`float`** only; drives horizontal **`PARALLAX_UV`** offset on **`canvas_item`** (see Parallax above). |
 
 Unknown literal hints → **`W0201`**.
 

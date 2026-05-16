@@ -1,6 +1,6 @@
 {
   "name": "@yoruxiii/shaderlab",
-  "version": "0.3.1-testing.0",
+  "version": "0.3.2-testing.0",
   "description": "Vite-first shader DSL plugin for the web (.slab → GLSL)",
   "type": "module",
   "license": "MIT OR Apache-2.0",
