@@ -2,11 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for public API expectations. Prerelease lines use the `testing` prerelease label (`0.x.x-testing.n`).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for public API expectations. Older releases used `-testing` prerelease version labels on npm.
 
 ## [Unreleased]
 
 - **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
+
+## [0.3.0] - 2026-05-15
+
+### Added
+
+- **`type="spatial"`**: standalone fullscreen passes or **augment** mode with **`CANVAS_TEXTURE`** / **`CANVAS_UV`** sampling the immediate upstream pass.
+- **Compositor**: **`useShader`** wires **`canvas_item → spatial×N → postprocess`** (compile-order spatial augments, max **8**); runtime **`spatial` `feedFrom`** accepts **`canvas_item`** or a prior canvas-fed **`spatial`**.
+- **Parallax (`canvas_item`)**: **`hint="parallax_layer"`** on **`float`** uniforms and builtin **`PARALLAX_UV`** (horizontal drift; **`H0312`** off **`canvas_item`**).
+- **Vertex-forward 2.5D** on **`canvas_item`**: documented `<vertex>` body order after default fullscreen setup.
+
+### Changed
+
+- **Runtime**: WebGL2 contexts default to **no depth buffer**; 2D draw paths disable depth testing (fixes black **`postprocess`** chains when feeding from an offscreen pass).
+- **Diagnostics / docs**: **`spatial`** in **`E0203`** / **`H0312`** messaging; LANGUAGE and USAGE describe multi-stage slabs and parallax.
+
+### Fixed
+
+- **`postprocess`** + manual **`feedFrom`**: feeder could render black into a color-only FBO when depth testing was enabled on a shared canvas context.
 
 ## [0.3.2-testing.1] - 2026-05-15
 

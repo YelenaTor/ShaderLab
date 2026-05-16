@@ -81,7 +81,7 @@ Allowed builtins:
 
 `SCREEN_UV`, `SCREEN_TEXTURE`, `COLOR`, `TIME`, `RESOLUTION`.
 
-Typical role: full-screen passes sampling the companion **`canvas_item`** render target supplied via runtime **`attach(canvas, { feedFrom: canvasItem })`** (same FBO pattern as **`spatial`** augment).
+Typical role: full-screen passes sampling the **immediate upstream** pass via runtime **`feedFrom`** (`canvas_item` or the last canvas-fed **`spatial`** in a chain; same FBO pattern as **`spatial`** augment).
 
 ### `spatial`
 

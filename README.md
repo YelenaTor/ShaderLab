@@ -8,19 +8,29 @@ Vite-first toolchain for **`.slab`** shader modules: declarative XML-ish metadat
 
 **Requirements:** Node **18+**, Vite **5 or 6**, WebGL2 in the browser.
 
+Published on npm as **`@yoruxiii/shaderlab`** on the **`latest`** dist-tag (see badge above). Prerelease builds use the **`testing`** dist-tag: `npm install @yoruxiii/shaderlab@testing`.
+
+**Docs:** [CHANGELOG.md](./CHANGELOG.md) · [Usage guide](./docs/USAGE.md) · [Slab language reference](./docs/LANGUAGE.md)
+
 ## Install
 
 ```bash
 npm install @yoruxiii/shaderlab
 ```
 
-Prereleases use the **`testing`** dist-tag:
+Pin a version for reproducible builds:
 
 ```bash
-npm install @yoruxiii/shaderlab@testing
+npm install @yoruxiii/shaderlab@0.3.0
+# or
+npm install @yoruxiii/shaderlab@^0.3
 ```
 
-See [CHANGELOG.md](./CHANGELOG.md) for release notes.
+**From GitHub** (same sources as a release tag):
+
+```bash
+npm install github:YelenaTor/ShaderLab#v0.3.0
+```
 
 ## Quick start
 

@@ -30,41 +30,26 @@ Constraints worth accepting upfront:
 
 Use **`npm ls @yoruxiii/shaderlab`** (and **`peerDependency`** warnings from npm) as ground truth for **your** tree; tables below describe upstream ShaderLab releases.
 
-### 0.3.x testing (`@yoruxiii/shaderlab@^0.3`)
+### 0.3.x — current stable (`@yoruxiii/shaderlab@^0.3`, npm **`latest`**)
 
 | Topic | Behaviour |
 |--------|-----------|
-| **Peer tooling** | Unchanged from 0.2.x — Vite **`^5` or `^6`**, Node **`≥18`**. |
+| **Peer tooling** | Vite **`^5` or `^6`**, Node **`≥18`**. |
 | **Compiled shader kinds** | **`canvas_item`**, **`postprocess`**, and **`spatial`** (`<shader type="…">`). |
-| **`spatial`** | **Standalone:** no **`CANVAS_*`** builtins — fullscreen pass like **`canvas_item`**. **Augment:** references **`CANVAS_TEXTURE`** / **`CANVAS_UV`** → metadata **`requiresCanvasFeed`**; runtime **`attach(canvas, { feedFrom: canvasItem \| priorSpatial })`**. Uses the same offscreen FBO draw pattern as **`postprocess`**. |
-| **`useShader` auto-wiring** | Sorted pipeline: **`canvas_item` → spatial (augment)×N → postprocess`**. **`useShader` ignores `<shader>` order** in the file; multiple canvas-fed spatials run in **compile emission order** (up to **8**). |
-| **Vertex 2.5D / parallax** | Documented for **`canvas_item`**: user `<vertex>` after default setup, or **`PARALLAX_UV`** + **`hint="parallax_layer"`** (see [LANGUAGE.md](./LANGUAGE.md)). Layered “floating” looks combine parallax background + **`spatial`** augment + optional **`postprocess`**. |
+| **`spatial`** | **Standalone:** no **`CANVAS_*`** — fullscreen pass like **`canvas_item`**. **Augment:** **`CANVAS_TEXTURE`** / **`CANVAS_UV`** → **`requiresCanvasFeed`**; **`attach(canvas, { feedFrom: upstream })`** where upstream is **`canvas_item`** or a prior canvas-fed **`spatial`**. |
+| **`useShader` auto-wiring** | **`canvas_item → spatial (augment)×N → postprocess`** (compile emission order, max **8** spatials). Ignores XML `<shader>` order. |
+| **Parallax / 2.5D** | **`PARALLAX_UV`** + **`hint="parallax_layer"`** on **`float`** uniforms (**`canvas_item`** only); user `<vertex>` after default setup for custom 2.5D (see [LANGUAGE.md](./LANGUAGE.md)). |
+| **Runtime** | Default WebGL context **`depth: false`**; 2D paths disable depth testing. **First `attach` on a canvas wins** context attributes for that canvas. |
+| **Emitted artefacts** | One ES module per `.slab` import (`__shaders` + named exports). Optional **`*.slab.d.ts`** via plugin **`dts`**. |
 
-### 0.3.2-testing (`@yoruxiii/shaderlab@0.3.2-testing.1`)
-
-**Parallax** on **`canvas_item`** (`PARALLAX_UV`, `parallax_layer` hint). **Multi-spatial** chains and **`spatial` → `spatial`** `feedFrom` in runtime / **`useShader`**.
-
-### 0.3.1-testing (`@yoruxiii/shaderlab@0.3.1-testing.0`)
-
-Adds the **three-stage compositor**: **`postprocess`** may **`feedFrom`** a canvas-fed **`spatial`**; **`SCREEN_TEXTURE`** samples spatial’s output, not the raw canvas pass.
-
-### 0.2.x testing (`@yoruxiii/shaderlab@^0.2`)
-
-Prior-generation behaviour (still accurate for older pins):
+### 0.2.x — previous generation
 
 | Topic | Behaviour |
 |--------|-----------|
-| **Peer tooling** | Vite **`^5` or `^6`** (`@yoruxiii/shaderlab/vite`); optional peers only when importing bindings (`react`, `vue`, `svelte`, `@nuxt/kit`). Node **`≥18`**. |
-| **Compiled shader kinds** | Only **`canvas_item`** and **`postprocess`** (`<shader type="…">`). Unknown kinds fail with **`E0203`**. |
-| **Emitted artefacts** | One ES module per `.slab` import (`__shaders` plus named exports). Optional sibling **`*.slab.d.ts`** via plugin option **`dts`** (defaults documented with package README). |
-| **Runtime API** | `useShader(importedModule)` takes the **bundler-produced module**, never a filesystem path string. Post-process shaders attach with **`feedFrom`** pointing at the upstream **`canvas_item`** instance produced by the same tooling stack. |
-| **Recent quality changes** | Shared template helpers; diagnostic line mapping for `<shader>` / `<uniform>`; strict `BlendMode`; runtime attach options (DPR cap, visibility pause, debounced resize, uniform dirty uploads) — see [CHANGELOG.md](../CHANGELOG.md). |
-| **CLI** | `shaderlab init` detects stacks and patches configs (`--dry-run`, `-y` / `--yes` documented in README). |
-| **Editor typings** | `@yoruxiii/shaderlab/client` ambient typings until sibling **`*.slab.d.ts`** exists beside sources. |
+| **Shader kinds** | **`canvas_item`** and **`postprocess`** only (no **`spatial`**). |
+| **Install pin** | `@yoruxiii/shaderlab@0.2.1-testing.0` or older **`0.2.x-testing`** lines if you must stay on prerelease builds. |
 
-Planned documentation hygiene:
-
-- Each subsequent **minor / major** that materially changes integration guarantees gets its own subsection above (“### `0.2.x`”, …), preserving historical compatibility expectations without rewriting older bullets silently.
+See [CHANGELOG.md](../CHANGELOG.md) for migration notes from **0.2.x-testing** to **0.3.0**.
 
 ---
 
@@ -76,16 +61,16 @@ Install from **npm** (package scope **`@yoruxiii/shaderlab`** — all lowercase 
 npm install @yoruxiii/shaderlab
 ```
 
-For a specific prerelease or to follow the `testing` dist-tag:
+Pin the current stable release:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.3.2-testing.1
+npm install @yoruxiii/shaderlab@0.3.0
 ```
 
-Alternatively, install from a **GitHub tag** (same tree as the release tag):
+Alternatively, install from a **GitHub tag**:
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.3.2-testing.1
+npm install github:YelenaTor/ShaderLab#v0.3.0
 ```
 
 Register once per **Vite** configuration (`vite.config.ts` / `.mts`):
@@ -134,7 +119,7 @@ Safe-by-default writers patch recognised configs without deleting manual edits; 
 
 ---
 
-## Runtime discipline (0.2.x recap)
+## Runtime discipline (0.3.x)
 
 - Prefer **`useShader(module)`** when one slab contains multiple shaders — ordering handles **`feedFrom`** wiring for postprocessing automatically.
 - Prefer named **`attach`** exports only when you deliberately reorder chains or feed uniforms manually.

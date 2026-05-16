@@ -6,7 +6,7 @@ import { runInitForFramework } from "./init.js";
 import { parseShaderlabCli } from "./parse-args.js";
 import type { WriterReport } from "./writers/types.js";
 
-const VERSION = "0.3.2-testing.1";
+const VERSION = "0.3.0";
 
 function printHelp(): void {
   // eslint-disable-next-line no-console
