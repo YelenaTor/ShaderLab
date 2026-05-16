@@ -122,7 +122,7 @@ Recognised patterns:
 | **`color`** | Influences emitted typings and runtime linearisation for vec colour tuples. |
 | **`texture`**, **`albedo`**, **`normal_map`** | Texture feeder semantics + sampler typings. |
 | **`mouse_position`** | Runtime-owned **`vec2`**; typings expose readonly tuples; uniforms ignore manual writes at runtime. |
-| **`parallax_layer`** | **`float`** only; drives horizontal **`PARALLAX_UV`** offset on **`canvas_item`** (see Parallax above). |
+| **`parallax_layer`** | **`float`** only (`W0201` on other types); drives horizontal **`PARALLAX_UV`** offset on **`canvas_item`** (see Parallax above). |
 
 Unknown literal hints → **`W0201`**.
 

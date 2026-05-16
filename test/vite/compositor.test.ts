@@ -27,6 +27,7 @@ function createMockGl(): WebGL2RenderingContext & {
     FRAMEBUFFER_COMPLETE: 36053,
     TRIANGLES: 4,
     CULL_FACE: 2884,
+    DEPTH_TEST: 0x0b71,
     BLEND: 3042,
     ONE: 1,
     DST_COLOR: 774,
@@ -231,6 +232,35 @@ describe("3-stage compositor runtime", () => {
 
     spaceB.detach();
     spaceA.detach();
+    bg.detach();
+    vi.unstubAllGlobals();
+  });
+
+  it("post chain disables depth test when sampling feeder into color-only FBO", () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const gl = createMockGl();
+    const disable = vi.spyOn(gl, "disable");
+    const canvas = createCanvas(gl);
+
+    const bg = new ShaderLabRuntime(minimalConfig("canvas_item"));
+    const pp = new ShaderLabRuntime(
+      minimalConfig("postprocess", {
+        screenTextureUnit: 0,
+        referencedBuiltins: ["SCREEN_TEXTURE"],
+      }),
+    );
+
+    bg.attach(canvas, { depthBuffer: true });
+    pp.attach(canvas, { feedFrom: bg });
+
+    (pp as unknown as { drawFrame(): void }).drawFrame();
+
+    expect(disable).toHaveBeenCalledWith(gl.DEPTH_TEST);
+    expect(gl.drawArrays).toHaveBeenCalled();
+
+    pp.detach();
     bg.detach();
     vi.unstubAllGlobals();
   });

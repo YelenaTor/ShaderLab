@@ -160,7 +160,16 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
     }
 
     for (const u of sh.uniforms) {
-      if (u.hint && !isHintRecognized(u.hint)) {
+      if (u.hint?.trim() === "parallax_layer" && u.type !== "float") {
+        diagnostics.push(
+          diagnostic(
+            "W0201",
+            '`hint="parallax_layer"` is only valid on `type="float"` uniforms — hint will be ignored',
+            filename,
+            u.line ?? sh.line ?? 1,
+          ),
+        );
+      } else if (u.hint && !isHintRecognized(u.hint)) {
         diagnostics.push(
           diagnostic(
             "W0201",

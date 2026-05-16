@@ -29,7 +29,7 @@ function requiresCanvasFeed(inst: ShaderInstance): boolean {
  * Orchestrates `attach` / `detach` for all shaders in a `.slab` module.
  * Pass the **imported module** (with `__shaders`), not a string path.
  *
- * Multi-pass slabs are wired in pipeline order: canvas_item → spatial (augment) → postprocess,
+ * Multi-pass slabs are wired in pipeline order: canvas_item → spatial (augment)×N → postprocess,
  * regardless of `<shader>` order in the source file.
  */
 export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabModule<T>): {

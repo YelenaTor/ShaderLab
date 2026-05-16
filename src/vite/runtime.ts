@@ -163,6 +163,11 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     this.currentGlProgram = null;
   }
 
+  /** Fullscreen 2D slabs do not use the depth buffer; disable when drawing offscreen or to canvas. */
+  private prepare2dPass(gl: WebGL2RenderingContext): void {
+    gl.disable(gl.DEPTH_TEST);
+  }
+
   private bindProgram(gl: WebGL2RenderingContext): void {
     const p = this.program;
     if (!p) return;
@@ -253,7 +258,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       alpha: true,
       antialias: false,
       premultipliedAlpha: false,
-      depth: true,
+      depth: false,
       ...options?.webglContextAttributes,
     };
     if (options?.depthBuffer !== undefined) {
@@ -289,7 +294,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires attach(canvas, { feedFrom: canvasItemInstance })",
+          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires attach(canvas, { feedFrom: canvas_item or canvas-fed spatial instance })",
         );
       }
       if (!isValidSpatialAugmentFeedPartner(p)) {
@@ -608,6 +613,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
         gl.bindTexture(gl.TEXTURE_2D, null);
       }
     } else if (!this.slave) {
+      this.prepare2dPass(gl);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
       gl.clearColor(0, 0, 0, 1);
@@ -630,6 +636,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       return;
     }
     const gl = this.gl;
+    this.prepare2dPass(gl);
     this.bindProgram(gl);
     this.applyBlend(meta);
     this.applyCull(meta);
@@ -660,6 +667,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, savedFb);
     gl.viewport(0, 0, w, h);
+    this.prepare2dPass(gl);
     this.bindProgram(gl);
     this.applyBlend(meta);
     this.applyCull(meta);

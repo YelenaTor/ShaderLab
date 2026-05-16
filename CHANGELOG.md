@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
 
+## [0.3.2-testing.1] - 2026-05-15
+
+### Fixed
+
+- **Post + manual `feedFrom`**: black output when a depth-enabled feeder drew before post sampled a color-only FBO (default WebGL context **`depth: false`**; depth test disabled on 2D draw paths).
+
+### Changed
+
+- **Runtime**: `prepare2dPass` call sites deduplicated in compositor draws.
+- **DX / docs**: spatial `feedFrom` attach error; USAGE default depth and first-attach-wins on a shared canvas; **`W0201`** when `hint="parallax_layer"` is not on **`float`**.
+
 ## [0.3.2-testing.0] - 2026-05-15
 
 ### Added
@@ -19,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - **Docs**: layered 2.5D / floating look via parallax + spatial augment; **`CANVAS_TEXTURE` / `CANVAS_UV`** sample the **immediate upstream** pass (canvas or prior spatial).
+- **Runtime**: WebGL2 contexts default to **no depth buffer**; depth test disabled on 2D draw paths.
 
 ## [0.3.1-testing.0] - 2026-05-14
 

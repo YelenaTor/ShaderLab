@@ -21,8 +21,7 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
   const parallaxGlsl = parallaxUniform ? glslUniformName(parallaxUniform.name) : null;
 
   const vs: string[] = ["#version 300 es", "precision mediump float;"];
-  const needsTimeForParallax = wantsParallax && (vb.has("TIME") || parallaxGlsl != null);
-  if (vb.has("TIME") || needsTimeForParallax) {
+  if (vb.has("TIME") || wantsParallax) {
     vs.push("uniform float u_slab_time;");
     vs.push("#define TIME u_slab_time");
   }

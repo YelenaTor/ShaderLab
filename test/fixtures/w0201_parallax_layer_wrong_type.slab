@@ -1,0 +1,8 @@
+<shaderlab version="1.0">
+  <shader id="x" type="canvas_item">
+    <uniforms>
+      <uniform name="layer" type="vec3" hint="parallax_layer" default="0.5,0.5,0.5" />
+    </uniforms>
+    <fragment><![CDATA[COLOR = vec4(UV, 0.0, 1.0);]]></fragment>
+  </shader>
+</shaderlab>

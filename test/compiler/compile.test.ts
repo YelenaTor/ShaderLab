@@ -122,6 +122,7 @@ describe("compileSlab", () => {
   const warnCases: { file: string; code: string }[] = [
     { file: "w0101_bad_render_mode.slab", code: "W0101" },
     { file: "w0201_bad_hint.slab", code: "W0201" },
+    { file: "w0201_parallax_layer_wrong_type.slab", code: "W0201" },
     { file: "w0202_default_out_range.slab", code: "W0202" },
     { file: "w0301_empty_vertex.slab", code: "W0301" },
   ];

@@ -40,7 +40,7 @@ Use **`npm ls @yoruxiii/shaderlab`** (and **`peerDependency`** warnings from npm
 | **`useShader` auto-wiring** | Sorted pipeline: **`canvas_item` → spatial (augment)×N → postprocess`**. **`useShader` ignores `<shader>` order** in the file; multiple canvas-fed spatials run in **compile emission order** (up to **8**). |
 | **Vertex 2.5D / parallax** | Documented for **`canvas_item`**: user `<vertex>` after default setup, or **`PARALLAX_UV`** + **`hint="parallax_layer"`** (see [LANGUAGE.md](./LANGUAGE.md)). Layered “floating” looks combine parallax background + **`spatial`** augment + optional **`postprocess`**. |
 
-### 0.3.2-testing (`@yoruxiii/shaderlab@0.3.2-testing.0`)
+### 0.3.2-testing (`@yoruxiii/shaderlab@0.3.2-testing.1`)
 
 **Parallax** on **`canvas_item`** (`PARALLAX_UV`, `parallax_layer` hint). **Multi-spatial** chains and **`spatial` → `spatial`** `feedFrom` in runtime / **`useShader`**.
 
@@ -79,13 +79,13 @@ npm install @yoruxiii/shaderlab
 For a specific prerelease or to follow the `testing` dist-tag:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.3.2-testing.0
+npm install @yoruxiii/shaderlab@0.3.2-testing.1
 ```
 
 Alternatively, install from a **GitHub tag** (same tree as the release tag):
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.3.2-testing.0
+npm install github:YelenaTor/ShaderLab#v0.3.2-testing.1
 ```
 
 Register once per **Vite** configuration (`vite.config.ts` / `.mts`):
@@ -151,8 +151,8 @@ Heavy patterns (many small previews, docs galleries) multiply contexts and loops
 | **`maxDevicePixelRatio`** | Caps effective DPR when sizing the backing store so high-DPR laptops do not allocate oversized render targets / FBOs for tiny preview canvases. |
 | **`visibilityPause`** | When `true`, uses **`IntersectionObserver`** to **pause the RAF loop** while the canvas is off-screen (saves CPU/GPU on long doc pages). |
 | **`visibilityRootMargin`** | Passed through to `IntersectionObserver` as `rootMargin` when `visibilityPause` is enabled. |
-| **`depthBuffer`** | Set to `false` for typical 2D slabs to avoid allocating a depth buffer (ignored if `webglContextAttributes.depth` is set explicitly). |
-| **`webglContextAttributes`** | Shallow-merged over ShaderLab’s defaults for `getContext("webgl2", …)`. |
+| **`depthBuffer`** | Defaults to **`false`** (no depth buffer; typical 2D slabs). Set **`true`** only if you need depth attachment. Ignored if `webglContextAttributes.depth` is set explicitly. **First `attach` on a canvas wins** — later attaches share that context. |
+| **`webglContextAttributes`** | Shallow-merged over ShaderLab’s defaults for `getContext("webgl2", …)` (`depth: false`, `alpha: true`, `premultipliedAlpha: false`). |
 
 Resize handling **coalesces** `ResizeObserver` notifications to **one `syncCanvasSize` per animation frame**; **`detach()`** flushes a final sync so the backing store matches layout before teardown.
 
