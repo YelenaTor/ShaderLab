@@ -26,6 +26,9 @@ function requiresCanvasFeed(inst: ShaderInstance): boolean {
 /**
  * Orchestrates `attach` / `detach` for all shaders in a `.slab` module.
  * Pass the **imported module** (with `__shaders`), not a string path.
+ *
+ * Multi-pass slabs are wired in pipeline order: canvas_item → spatial (augment) → postprocess,
+ * regardless of `<shader>` order in the source file.
  */
 export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabModule<T>): {
   readonly shaders: T;
@@ -43,70 +46,68 @@ export function useShader<T extends Record<string, ShaderInstance>>(mod: SlabMod
       }
       const entries = Object.entries(shaders) as [string, ShaderInstance][];
 
-      const hasPost = entries.some(([, s]) => shaderType(s) === "postprocess");
-      const spatialAugEntries = entries.filter(([, s]) => requiresCanvasFeed(s));
-      if (hasPost && spatialAugEntries.length > 0) {
-        throw new Error(
-          "[shaderlab] useShader: combining postprocess and spatial (CANVAS_TEXTURE / CANVAS_UV) in one auto-wired slab is not supported in 0.3.0-testing; attach postprocess manually once multi-stage compositing exists.",
-        );
-      }
-      if (spatialAugEntries.length > 1) {
-        throw new Error(
-          "[shaderlab] useShader: at most one spatial shader using CANVAS_TEXTURE / CANVAS_UV per slab in 0.3.0-testing; use manual attach for deeper chains.",
-        );
-      }
-
       const canvasItems = entries.filter(([, s]) => shaderType(s) === "canvas_item");
+      const spatialAug = entries.filter(([, s]) => requiresCanvasFeed(s));
+      const posts = entries.filter(([, s]) => shaderType(s) === "postprocess");
       const standaloneSpatial = entries.filter(
         ([, s]) => shaderType(s) === "spatial" && !requiresCanvasFeed(s),
       );
 
-      let feeder: ShaderInstance;
-      let feederIsCanvas: boolean;
-
       if (canvasItems.length > 1) {
         throw new Error("[shaderlab] useShader: multiple canvas_item shaders in one slab — attach manually");
       }
-      if (canvasItems.length === 1) {
-        feeder = canvasItems[0]![1];
-        feederIsCanvas = true;
-      } else if (entries.length === 1 && standaloneSpatial.length === 1) {
-        feeder = standaloneSpatial[0]![1];
-        feederIsCanvas = false;
-      } else if (standaloneSpatial.length > 0) {
+      if (spatialAug.length > 1) {
+        throw new Error(
+          "[shaderlab] useShader: at most one spatial shader using CANVAS_TEXTURE / CANVAS_UV per slab; use manual attach for deeper chains",
+        );
+      }
+      if (posts.length > 1) {
+        throw new Error("[shaderlab] useShader: multiple postprocess shaders in one slab — attach manually");
+      }
+
+      const needsCanvas = spatialAug.length > 0 || posts.length > 0;
+      const canvasItem = canvasItems[0]?.[1];
+
+      if (needsCanvas && !canvasItem) {
+        throw new Error("[shaderlab] useShader: slab needs a canvas_item shader for this chain");
+      }
+
+      if (posts.length === 1 && spatialAug.length === 0 && !canvasItem) {
+        throw new Error("[shaderlab] useShader: postprocess requires a canvas_item feeder");
+      }
+
+      if (entries.length === 1 && standaloneSpatial.length === 1) {
+        const { feedFrom: _omit, ...sharedOpts } = options ?? {};
+        standaloneSpatial[0]![1].attach(canvas, sharedOpts);
+        attached.push(standaloneSpatial[0]![1]);
+        return;
+      }
+
+      if (standaloneSpatial.length > 0 && (canvasItem || spatialAug.length > 0 || posts.length > 0)) {
         throw new Error(
           "[shaderlab] useShader: standalone spatial must be the only shader in the slab, or add a canvas_item shader",
         );
-      } else {
+      }
+
+      if (!canvasItem && entries.length > 0) {
         throw new Error("[shaderlab] useShader: slab has no canvas_item shader to attach first");
       }
 
-      const { feedFrom: _omit, ...sharedOpts } = options ?? {};
-      feeder.attach(canvas, sharedOpts);
-      attached.push(feeder);
+      const stages: ShaderInstance[] = [];
+      if (canvasItem) stages.push(canvasItem);
+      if (spatialAug[0]) stages.push(spatialAug[0][1]);
+      if (posts[0]) stages.push(posts[0][1]);
 
-      for (const [, sh] of entries) {
-        if (sh === feeder) continue;
-        const ty = shaderType(sh);
-        if (ty === "postprocess") {
-          if (!feederIsCanvas) {
-            throw new Error("[shaderlab] useShader: postprocess requires a canvas_item feeder");
-          }
-          sh.attach(canvas, { ...sharedOpts, feedFrom: feeder });
-          attached.push(sh);
-        } else if (ty === "spatial" && requiresCanvasFeed(sh)) {
-          if (!feederIsCanvas) {
-            throw new Error("[shaderlab] useShader: canvas-fed spatial requires a canvas_item feeder");
-          }
-          sh.attach(canvas, { ...sharedOpts, feedFrom: feeder });
-          attached.push(sh);
-        } else if (ty === "spatial") {
-          throw new Error(
-            "[shaderlab] useShader: unexpected extra standalone spatial in slab — attach manually",
-          );
-        } else if (ty === "canvas_item") {
-          throw new Error("[shaderlab] useShader: multiple canvas_item shaders in one slab — attach manually");
+      const { feedFrom: _omit, ...sharedOpts } = options ?? {};
+      let chainTail: ShaderInstance | undefined;
+      for (const sh of stages) {
+        if (chainTail === undefined) {
+          sh.attach(canvas, sharedOpts);
+        } else {
+          sh.attach(canvas, { ...sharedOpts, feedFrom: chainTail });
         }
+        attached.push(sh);
+        chainTail = sh;
       }
     },
     detachAll() {

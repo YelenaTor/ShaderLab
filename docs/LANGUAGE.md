@@ -92,6 +92,16 @@ Allowed builtins (0.3.x):
 
 PBR-style names reserved in the lexer (**`WORLD_POSITION`**, **`VIEW_DIRECTION`**, etc.) remain **invalid** in **`spatial`** until a future template + runtime contract exists — they still produce **`H0312`**.
 
+### Multi-stage slabs (`useShader`)
+
+When a single `.slab` file exports multiple shaders, **`useShader(importedModule)`** wires passes in **pipeline order** (not XML order):
+
+1. **`canvas_item`** (base feeder)
+2. **Canvas-fed `spatial`** (at most one), if present
+3. **`postprocess`**, if present
+
+**`postprocess`** `feedFrom` may point at the **`canvas_item`** or at a canvas-fed **`spatial`**; **`SCREEN_TEXTURE`** samples whichever stage is immediately upstream. Multiple spatial augments or deeper graphs are not auto-wired — attach instances manually.
+
 ### Names that appear in tooling lists but are invalid here
 
 The lexer recognises additional uppercase tokens for forward-looking grammar parity (for example names familiar from wider ShaderLab roadmaps). **They must not appear** in sources targeting a given **`type`** unless that release’s allowlist includes them — stray mentions produce **`H0312`**.

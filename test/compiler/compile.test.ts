@@ -45,6 +45,17 @@ describe("compileSlab", () => {
     expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
   });
 
+  it("compiles chain_canvas_spatial_post.slab (three-stage slab)", () => {
+    const r = compileSlab(load("chain_canvas_spatial_post.slab"), "chain_canvas_spatial_post.slab");
+    expect(r.output).not.toBeNull();
+    expect(r.output!.shaders).toHaveLength(3);
+    const byId = Object.fromEntries(r.output!.shaders.map((s) => [s.id, s]));
+    expect(byId.bg!.metadata.shaderType).toBe("canvas_item");
+    expect(byId.space!.metadata.requiresCanvasFeed).toBe(true);
+    expect(byId.pp!.metadata.shaderType).toBe("postprocess");
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
   it("compiles canvas_vertex_25d_ok.slab (vertex gl_Position tweak)", () => {
     const r = compileSlab(load("canvas_vertex_25d_ok.slab"), "canvas_vertex_25d_ok.slab");
     expect(r.output).not.toBeNull();

@@ -65,17 +65,23 @@ describe("useShader", () => {
     expect(space.attach).toHaveBeenCalledWith(canvas, { feedFrom: bg });
   });
 
-  it("throws when postprocess and canvas-fed spatial appear together", () => {
+  it("attaches canvas_item → spatial → postprocess in pipeline order (ignores slab key order)", () => {
     const bg = mockShader("canvas_item");
     const space = mockShader("spatial", { requiresCanvasFeed: true });
     const pp = mockShader("postprocess");
-    const api = useShader({ __shaders: { bg, space, pp } });
-    expect(() => api.attach({} as HTMLCanvasElement)).toThrow(/not supported in 0\.3\.0-testing/);
+    const api = useShader({ __shaders: { pp, space, bg } });
+    const canvas = {} as HTMLCanvasElement;
+    api.attach(canvas);
+    expect(bg.attach).toHaveBeenCalledWith(canvas, {});
+    expect(space.attach).toHaveBeenCalledWith(canvas, { feedFrom: bg });
+    expect(pp.attach).toHaveBeenCalledWith(canvas, { feedFrom: space });
+    expect(bg.attach.mock.invocationCallOrder[0]).toBeLessThan(space.attach.mock.invocationCallOrder[0]!);
+    expect(space.attach.mock.invocationCallOrder[0]).toBeLessThan(pp.attach.mock.invocationCallOrder[0]!);
   });
 
   it("throws when slab is only postprocess", () => {
     const api = useShader({ __shaders: { x: mockShader("postprocess") } });
-    expect(() => api.attach({} as HTMLCanvasElement)).toThrow(/no canvas_item shader to attach first/);
+    expect(() => api.attach({} as HTMLCanvasElement)).toThrow(/canvas_item shader/);
   });
 
   it("allows standalone spatial as the only shader", () => {

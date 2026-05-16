@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
 
+## [0.3.1-testing.0] - 2026-05-14
+
+### Added
+
+- **3-stage compositor**: one slab can auto-wire **`canvas_item` → spatial (augment) → `postprocess`** via **`useShader`**. Pipeline order is fixed (XML `<shader>` order does not affect wiring). Only the terminal pass runs the animation loop.
+
+### Changed
+
+- **Runtime**: canvas-fed **`spatial`** `drawScenePass` renders the full augment (feeder → scratch FBO → spatial) into the caller’s bound framebuffer, so **`postprocess`** can use **`feedFrom: spatialInstance`**.
+- **`useShader`**: removed the throw that blocked **`postprocess`** and canvas-fed **`spatial`** in the same module.
+
+### Fixed
+
+- **Post chains through spatial**: **`SCREEN_TEXTURE`** now samples the spatial stage output when **`feedFrom`** points at a canvas-fed spatial runtime, not the raw canvas pass.
+
 ## [0.3.0-testing.0] - 2026-05-14
 
 ### Added

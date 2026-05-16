@@ -32,7 +32,26 @@ npm run check:compiler-boundary
 
 Use Node **18+** (see `package.json` `engines`). The compiler boundary script enforces that `src/compiler/` stays free of `vite/`, `adapters/`, and `cli/` imports.
 
-**GitHub Actions:** `.github/workflows/ci.yml` and `release.yml` are currently **disabled stubs** (manual `workflow_dispatch` only). Uncomment the template blocks in those files when you want push/PR CI or tag-based npm publishes.
+## Releasing (maintainers)
+
+Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml).
+
+| Trigger | Result |
+|---------|--------|
+| Push **`Testing`** | `npm publish --access public --tag testing` |
+| Push **`master`** | `npm publish --access public` (`latest`) |
+| Push tag **`v*`** | GitHub Release with plugin zip (no npm publish from that job) |
+
+Requires repository secret **`NPM_TOKEN`** (GitHub → Settings → Secrets and variables → Actions). Never commit tokens to the repo.
+
+Before publishing, bump `package.json` / `package-lock.json` (npm rejects duplicate versions), then from the repo root:
+
+```bash
+npm run check:compiler-boundary
+npm run typecheck
+npm test
+npm run build
+```
 
 ## Diagnostics and error codes
 
@@ -47,7 +66,7 @@ When you add or change a diagnostic:
 
 ## Runtime changes
 
-The core runtime is intentionally small (see [README.md](./README.md#runtime-minimalism-and-deferred-ideas)). For PRs that expand runtime behavior, briefly cover:
+The core runtime is intentionally small (compile artifacts in, WebGL lifecycle and documented feeders out — no scene graph). For PRs that expand runtime behavior, briefly cover:
 
 1. **Problem** — what breaks without the change.
 2. **Smaller alternative** — what you ruled out (userland helper, codegen-only fix, etc.) and why it failed.
@@ -63,6 +82,6 @@ The core runtime is intentionally small (see [README.md](./README.md#runtime-min
 
 - **`docs/LANGUAGE.md`** — normative `.slab` grammar & diagnostics summaries for the shipped compiler.
 - **`docs/USAGE.md`** — versioned adoption expectations (extended whenever semver-visible behaviour shifts materially).
-- **[README.md](./README.md)** — product-facing overview + deliberate divergences (“Spec and docs divergences”).
+- **[README.md](./README.md)** — npm-facing overview, install, and quick start.
 
 Keep those three layers coherent whenever compiler-visible semantics move.

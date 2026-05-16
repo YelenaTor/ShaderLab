@@ -13,7 +13,7 @@ ShaderLab targets teams already shipping **Vite-built front ends** who want **de
 Reasonable examples:
 
 - Full-screen or inset **canvas effects**, typography overlays, image manipulation passes on quads.
-- **Two-tier setups**: draw UI or gameplay-related visuals into one shader-backed canvas (`canvas_item`), then optionally route through a **`postprocess`** shader reading **`SCREEN_TEXTURE`** for grading, blur-ish kernels you maintain yourself, etc. In **0.3+**, a **`spatial`** shader can sample that same feeder via **`CANVAS_TEXTURE`** (see version guide) instead of or in addition to post — not all combinations are auto-wired in **`useShader`** yet.
+- **Multi-pass setups**: draw into **`canvas_item`**, optionally **`spatial`** (augment), then **`postprocess`** — all on one canvas via **`useShader`** from **0.3.1** (see version guide).
 
 Poor fits:
 
@@ -37,8 +37,12 @@ Use **`npm ls @yoruxiii/shaderlab`** (and **`peerDependency`** warnings from npm
 | **Peer tooling** | Unchanged from 0.2.x — Vite **`^5` or `^6`**, Node **`≥18`**. |
 | **Compiled shader kinds** | **`canvas_item`**, **`postprocess`**, and **`spatial`** (`<shader type="…">`). |
 | **`spatial`** | **Standalone:** no **`CANVAS_*`** builtins — fullscreen pass like **`canvas_item`**. **Augment:** references **`CANVAS_TEXTURE`** / **`CANVAS_UV`** → metadata **`requiresCanvasFeed`**; runtime **`attach(canvas, { feedFrom: canvasItem })`** required (feeder must be **`canvas_item`**). Uses the same offscreen FBO draw pattern as **`postprocess`**. |
-| **`useShader` auto-wiring** | **`canvas_item` + `postprocess`** (unchanged), **`canvas_item` only**, **`spatial` only** (standalone), or **`canvas_item` + one canvas-fed `spatial`**. **Not supported:** **`postprocess` together with canvas-fed `spatial`** in one slab module (throws); use manual **`attach`** if you need a custom chain. |
+| **`useShader` auto-wiring** | Sorted pipeline: **`canvas_item` → spatial (augment) → postprocess`** (at most one of each). **`useShader` ignores `<shader>` order** in the file. Still **not supported:** multiple spatial augments or spatial→spatial chains (use manual **`attach`**). |
 | **Vertex 2.5D** | Documented for **`canvas_item`**: user `<vertex>` runs after default **`gl_Position`** — overwrite clip position or emit custom varyings (see [LANGUAGE.md](./LANGUAGE.md)). |
+
+### 0.3.1-testing (`@yoruxiii/shaderlab@0.3.1-testing.0`)
+
+Adds the **three-stage compositor**: **`postprocess`** may **`feedFrom`** a canvas-fed **`spatial`**; **`SCREEN_TEXTURE`** samples spatial’s output, not the raw canvas pass.
 
 ### 0.2.x testing (`@yoruxiii/shaderlab@^0.2`)
 
@@ -71,13 +75,13 @@ npm install @yoruxiii/shaderlab
 For a specific prerelease or to follow the `testing` dist-tag:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.3.0-testing.0
+npm install @yoruxiii/shaderlab@0.3.1-testing.0
 ```
 
 Alternatively, install from a **GitHub tag** (same tree as the release tag):
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.3.0-testing.0
+npm install github:YelenaTor/ShaderLab#v0.3.1-testing.0
 ```
 
 Register once per **Vite** configuration (`vite.config.ts` / `.mts`):

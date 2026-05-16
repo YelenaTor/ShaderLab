@@ -18,8 +18,9 @@ export interface ShaderInstance<TUniforms = Record<string, unknown>> {
 
 export interface AttachOptions {
   /**
-   * For `postprocess`, or for `spatial` when metadata `requiresCanvasFeed` is true:
-   * the upstream **`canvas_item`** instance that renders into the offscreen texture first.
+   * Upstream feeder for multi-pass chains on one canvas.
+   * `postprocess`: `canvas_item` or canvas-fed `spatial`.
+   * Canvas-fed `spatial`: `canvas_item` only.
    */
   feedFrom?: ShaderInstance<Record<string, unknown>>;
   /**
@@ -75,6 +76,16 @@ function linkProgram(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShade
     throw new Error(`Program link failed:\n${log}`);
   }
   return p;
+}
+
+function isValidPostFeedPartner(partner: ShaderLabRuntime): boolean {
+  const m = partner.config.metadata;
+  if (m.shaderType === "canvas_item") return true;
+  return m.shaderType === "spatial" && m.requiresCanvasFeed === true;
+}
+
+function isValidSpatialAugmentFeedPartner(partner: ShaderLabRuntime): boolean {
+  return partner.config.metadata.shaderType === "canvas_item";
 }
 
 export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>> {
@@ -261,7 +272,12 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] postprocess requires attach(canvas, { feedFrom: canvasItemInstance })",
+          "[shaderlab] postprocess requires attach(canvas, { feedFrom: upstreamShaderInstance })",
+        );
+      }
+      if (!isValidPostFeedPartner(p)) {
+        throw new Error(
+          "[shaderlab] postprocess feedFrom must be canvas_item or canvas-fed spatial (CANVAS_TEXTURE / CANVAS_UV)",
         );
       }
       this.partner = p;
@@ -274,7 +290,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
           "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires attach(canvas, { feedFrom: canvasItemInstance })",
         );
       }
-      if (p.cfg.metadata.shaderType !== "canvas_item") {
+      if (!isValidSpatialAugmentFeedPartner(p)) {
         throw new Error(
           "[shaderlab] spatial feedFrom must be a canvas_item shader runtime (got a different shader type)",
         );
@@ -559,30 +575,36 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       this.sceneTex;
 
     if (sceneSamplePass) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
-      gl.viewport(0, 0, w, h);
-      gl.clearColor(0, 0, 0, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      this.partner!.drawScenePass(t, w, h);
-      this.invalidateProgramBinding();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, w, h);
-      gl.clearColor(0, 0, 0, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      this.bindProgram(gl);
-      this.applyBlend(meta);
-      this.applyCull(meta);
-      this.applyBuiltinUniforms(t, w, h);
-      this.applyUserUniforms();
-      const isPost = meta.shaderType === "postprocess";
-      const unit = isPost ? meta.screenTextureUnit ?? 0 : meta.canvasTextureUnit ?? 0;
-      const uName = isPost ? "u_slab_screen_texture" : "u_slab_canvas_texture";
-      gl.activeTexture(gl.TEXTURE0 + unit);
-      gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
-      const loc = this.locations.get(uName);
-      if (loc) gl.uniform1i(loc, unit);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      gl.bindTexture(gl.TEXTURE_2D, null);
+      if (meta.shaderType === "spatial" && meta.requiresCanvasFeed) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        this.drawSpatialAugmentComposite(t, w, h);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        this.partner!.drawScenePass(t, w, h);
+        this.invalidateProgramBinding();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        this.bindProgram(gl);
+        this.applyBlend(meta);
+        this.applyCull(meta);
+        this.applyBuiltinUniforms(t, w, h);
+        this.applyUserUniforms();
+        const unit = meta.screenTextureUnit ?? 0;
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
+        const loc = this.locations.get("u_slab_screen_texture");
+        if (loc) gl.uniform1i(loc, unit);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+      }
     } else if (!this.slave) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
@@ -600,15 +622,54 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
 
   drawScenePass(t: number, w: number, h: number): void {
     if (!this.gl || !this.program) return;
+    const meta = this.cfg.metadata;
+    if (meta.shaderType === "spatial" && meta.requiresCanvasFeed && this.partner) {
+      this.drawSpatialAugmentComposite(t, w, h);
+      return;
+    }
     const gl = this.gl;
     this.bindProgram(gl);
-    const meta = this.cfg.metadata;
     this.applyBlend(meta);
     this.applyCull(meta);
     this.applyBuiltinUniforms(t, w, h);
     this.applyUserUniforms();
     this.bindBuiltinTextures(gl, meta);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.currentGlProgram = this.program;
+  }
+
+  /**
+   * Canvas-fed spatial: render partner into scratch FBO, then spatial into the framebuffer
+   * that was bound when this method was entered (e.g. a postprocess pass FBO).
+   */
+  private drawSpatialAugmentComposite(t: number, w: number, h: number): void {
+    if (!this.gl || !this.program || !this.partner || !this.fbo || !this.sceneTex) return;
+    const gl = this.gl;
+    const meta = this.cfg.metadata;
+    const savedFb = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
+
+    this.ensureFbo();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    this.partner.drawScenePass(t, w, h);
+    this.invalidateProgramBinding();
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, savedFb);
+    gl.viewport(0, 0, w, h);
+    this.bindProgram(gl);
+    this.applyBlend(meta);
+    this.applyCull(meta);
+    this.applyBuiltinUniforms(t, w, h);
+    this.applyUserUniforms();
+    const unit = meta.canvasTextureUnit ?? 0;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, this.sceneTex);
+    const loc = this.locations.get("u_slab_canvas_texture");
+    if (loc) gl.uniform1i(loc, unit);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindTexture(gl.TEXTURE_2D, null);
     this.currentGlProgram = this.program;
   }
 
