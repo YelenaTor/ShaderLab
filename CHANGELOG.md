@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
 
+## [0.3.1] - 2026-05-18
+
+### Added
+
+- **Deprecation warning (`W0401`)**: The legacy `<shader>` element now emits a `W0401` [`Warn`] diagnostic on every occurrence, pointing authors at the `<shader_frame>` replacement that lands in `0.4.0-testing.0`. Codegen is unaffected — `W0401` does not block compilation. The warning carries a Rust-style suggestion: `Replace <shader …> with <shader_frame …> — see docs/API.md`.
+- **`docs/API.md`**: New normative consumer reference for the `shader_frame` API redesign. Documents `<shader_frame>`, frame types, uniform mutability (mutable vs. sealed), augment syntax, augment contracts, pipeline order, multi-frame slabs, TypeScript integration, and the full deprecation path table. Sections clearly marked live vs. testing-channel.
+
+### Changed
+
+- **`docs/LANGUAGE.md`**: Deprecation notice added under **Shader element** with a link to `docs/API.md`.
+- **`docs/USAGE.md`**: `docs/API.md` added to the **Where to look next** table.
+
 ## [0.3.0] - 2026-05-15
 
 ### Added

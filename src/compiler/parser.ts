@@ -116,6 +116,17 @@ export function parse(src: string, filename = "input.slab"): ParseResult {
       fragmentBody,
       line: shaderLine,
     });
+
+    // Emit deprecation warning for the legacy <shader> tag.
+    diagnostics.push(
+      diagnostic(
+        "W0401",
+        `\`<shader id="${id || "(unnamed)"}">\` is deprecated — replace with \`<shader_frame>\``,
+        filename,
+        shaderLine,
+        "Replace <shader …> with <shader_frame …> — see docs/API.md",
+      ),
+    );
   }
 
   return { ast: { version, shaders }, diagnostics };

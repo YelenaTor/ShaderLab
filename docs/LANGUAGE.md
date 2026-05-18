@@ -22,6 +22,11 @@ For integration steps (Vite, CLI, versioning), see **[USAGE.md](./USAGE.md)**.
 
 ### Shader element
 
+> **⚠️ Deprecated as of `0.3.1`.** The `<shader>` element is deprecated. The compiler
+> emits **`W0401`** for every `<shader>` tag encountered. The replacement is
+> `<shader_frame>`, landing on the testing channel in `0.4.0-testing.0` and stabilising
+> at `0.4.0`. See **[API.md](./API.md)** for the new schema and a migration guide.
+
 Each `<shader>` declares one compiled programme pair plus metadata.
 
 | Attribute | Required | Meaning |

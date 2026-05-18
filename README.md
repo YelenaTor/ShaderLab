@@ -4,13 +4,22 @@
 [![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](./LICENSE-MIT)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](./package.json)
 
+> [!WARNING]
+> **API change incoming.** The `<shader>` element is **deprecated as of `0.3.1`** and will
+> be removed in `0.4.0`. The replacement is `<shader_frame>`, arriving on the testing
+> channel in `0.4.0-testing.0` and stabilising at `0.4.0`. Every `<shader>` tag now emits
+> a **`W0401`** warning at compile time.
+> 
+> Read **[docs/API.md](./docs/API.md)** for the new schema and migration guide, or
+> **[CHANGELOG.md §0.3.1](./CHANGELOG.md)** for the short version.
+
 Vite-first toolchain for **`.slab`** shader modules: declarative XML-ish metadata plus GLSL snippets compile to WebGL2 programs and typed ES modules. Use **`useShader`** or **`attach`** on a canvas — not a full game engine or scene graph.
 
 **Requirements:** Node **18+**, Vite **5 or 6**, WebGL2 in the browser.
 
 Published on npm as **`@yoruxiii/shaderlab`** on the **`latest`** dist-tag (see badge above). Prerelease builds use the **`testing`** dist-tag: `npm install @yoruxiii/shaderlab@testing`.
 
-**Docs:** [CHANGELOG.md](./CHANGELOG.md) · [Usage guide](./docs/USAGE.md) · [Slab language reference](./docs/LANGUAGE.md)
+**Docs:** [CHANGELOG.md](./CHANGELOG.md) · [Usage guide](./docs/USAGE.md) · [Slab language reference](./docs/LANGUAGE.md) · [API reference](./docs/API.md)
 
 ## Install
 
@@ -21,7 +30,7 @@ npm install @yoruxiii/shaderlab
 Pin a version for reproducible builds:
 
 ```bash
-npm install @yoruxiii/shaderlab@0.3.0
+npm install @yoruxiii/shaderlab@0.3.1
 # or
 npm install @yoruxiii/shaderlab@^0.3
 ```
@@ -29,7 +38,7 @@ npm install @yoruxiii/shaderlab@^0.3
 **From GitHub** (same sources as a release tag):
 
 ```bash
-npm install github:YelenaTor/ShaderLab#v0.3.0
+npm install github:YelenaTor/ShaderLab#v0.3.1
 ```
 
 ## Quick start
@@ -120,6 +129,7 @@ Or `"types": ["@yoruxiii/shaderlab/client"]` in `tsconfig.json`. Compiled slabs 
 
 | Doc | Contents |
 |-----|----------|
+| [API.md](./docs/API.md) | `shader_frame` API reference and migration guide |
 | [USAGE.md](./docs/USAGE.md) | Adoption, `attach` options, version guide |
 | [LANGUAGE.md](./docs/LANGUAGE.md) | Grammar, builtins, diagnostics |
 | [CHANGELOG.md](./CHANGELOG.md) | Release history |

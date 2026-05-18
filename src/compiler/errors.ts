@@ -21,7 +21,8 @@ export type ErrorCodeId =
   | "W0101"
   | "W0201"
   | "W0202"
-  | "W0301";
+  | "W0301"
+  | "W0401";
 
 export interface ShaderlabDiagnostic {
   code: ErrorCodeId;
@@ -101,6 +102,10 @@ export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: str
   W0301: {
     severity: "Warn",
     summary: "`<vertex>` block is empty — could be omitted",
+  },
+  W0401: {
+    severity: "Warn",
+    summary: "`<shader>` is deprecated — use `<shader_frame>` instead (see docs/API.md)",
   },
 };
 

@@ -20,6 +20,7 @@ describe("§11 error code registry coverage", () => {
     const testSources = [
       readFileSync(join(here, "compile.test.ts"), "utf8"),
       readFileSync(join(here, "schema.test.ts"), "utf8"),
+      readFileSync(join(here, "deprecation.test.ts"), "utf8"),
       readFileSync(join(here, "../vite/runtime.test.ts"), "utf8"),
       readFileSync(join(here, "../vite/hints.test.ts"), "utf8"),
     ].join("\n");

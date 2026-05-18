@@ -153,6 +153,7 @@ Details remain in **[README.md](../README.md)** (“Vanilla runtime”, “Desig
 
 | Doc | Purpose |
 |-----|---------|
+| [API.md](./API.md) | `shader_frame` API reference and migration guide (`0.4.x`+) |
 | [LANGUAGE.md](./LANGUAGE.md) | `.slab` grammar, builtins, hints, `render_mode`, diagnostic codes |
 | [CHANGELOG.md](../CHANGELOG.md) | Version-to-version integrator-facing release notes |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Maintainer workflow & compiler/runtime boundaries |
