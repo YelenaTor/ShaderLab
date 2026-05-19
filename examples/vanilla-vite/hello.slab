@@ -1,5 +1,5 @@
-<shaderlab version="1.0">
-  <shader id="bg" type="canvas_item">
+<shaderlab version="2.0">
+  <shader_frame id="bg" type="canvas_item">
     <fragment><![CDATA[
 vec2 p = UV * 10.0;
 COLOR = vec4(
@@ -9,8 +9,8 @@ COLOR = vec4(
   1.0
 );
     ]]></fragment>
-  </shader>
-  <shader id="chroma" type="postprocess">
+  </shader_frame>
+  <shader_frame id="chroma" type="postprocess">
     <uniforms>
       <uniform name="strength" type="float" hint="range(0.0, 0.05)" default="0.015" />
     </uniforms>
@@ -21,5 +21,6 @@ vec4 g = texture(SCREEN_TEXTURE, SCREEN_UV);
 vec4 b = texture(SCREEN_TEXTURE, SCREEN_UV - vec2(o.x, 0.0));
 COLOR = vec4(r.r, g.g, b.b, 1.0);
     ]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>
+

@@ -1,0 +1,10 @@
+<shaderlab version="2.0">
+  <shader_frame id="demo" type="canvas_item">
+    <uniforms>
+      <uniform name="speed" type="float" hint="range(0.0, 5.0)" mutable="true" default="1.0" />
+    </uniforms>
+    <fragment><![CDATA[
+COLOR = vec4(UV, sin(TIME * speed) * 0.5 + 0.5, 1.0);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

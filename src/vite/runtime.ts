@@ -1,28 +1,36 @@
 import { parseDefaultValue } from "../compiler/hints.js";
 import type { ShaderRuntimeMetadata, UniformBindingMeta } from "../compiler/types.js";
 
-export interface ShaderInstanceConfig {
+export interface ShaderFrameInstanceConfig {
   shaderId: string;
   vertexSource: string;
   fragmentSource: string;
   metadata: ShaderRuntimeMetadata;
 }
 
-export interface ShaderInstance<TUniforms = Record<string, unknown>> {
+export type ShaderInstanceConfig = ShaderFrameInstanceConfig;
+
+export interface ShaderFrameInstance<TUniforms = Record<string, unknown>> {
+  readonly type: import("../compiler/types.js").ShaderType;
+  readonly id: string;
   readonly uniforms: TUniforms;
-  attach(canvas: HTMLCanvasElement, options?: AttachOptions): void;
-  detach(): void;
+  mount(target: HTMLElement | HTMLCanvasElement, options?: MountOptions): void;
+  unmount(): void;
+  set(param: string, value: unknown): void;
+  drawScenePass(t: number, w: number, h: number): void;
   /** @internal Hot module replacement — swaps GL program while preserving compatible uniforms. */
-  _slabHotSwap?(next: ShaderInstance<Record<string, unknown>>): void;
+  _slabHotSwap?(next: ShaderFrameInstance<Record<string, unknown>>): void;
 }
 
-export interface AttachOptions {
+export interface MountOptions {
   /**
    * Upstream feeder for multi-pass chains on one canvas.
    * `postprocess`: `canvas_item` or canvas-fed `spatial`.
    * Canvas-fed `spatial`: `canvas_item` only.
    */
-  feedFrom?: ShaderInstance<Record<string, unknown>>;
+  feedFrom?: ShaderFrameInstance<Record<string, unknown>>;
+  /** Spatial augment instances (load order) for canvas_item frames. */
+  augments?: ShaderFrameInstance[];
   /**
    * When set, backing-store width/height use `min(devicePixelRatio, this)` so large-DPR
    * preview canvases do not allocate oversized render targets / FBOs.
@@ -40,7 +48,7 @@ export interface AttachOptions {
    * Ignored if `webglContextAttributes.depth` is set explicitly.
    */
   depthBuffer?: boolean;
-  /** Merged over ShaderLab's default `getContext("webgl2", …)` attributes. */
+  /** Merged over ShaderLab's default `getContext("webgl2", ΓÇª)` attributes. */
   webglContextAttributes?: Partial<WebGLContextAttributes>;
 }
 
@@ -90,7 +98,7 @@ function isValidSpatialAugmentFeedPartner(partner: ShaderLabRuntime): boolean {
   return t === "spatial" && partner.config.metadata.requiresCanvasFeed === true;
 }
 
-export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>> {
+export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unknown>> {
   readonly uniforms: Record<string, unknown>;
   private cfg: ShaderInstanceConfig;
   private gl: WebGL2RenderingContext | null = null;
@@ -103,7 +111,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
   private resizeFlushRaf = 0;
   private visibilityObs: IntersectionObserver | null = null;
   private visible = true;
-  private lastAttachOptions: AttachOptions = {};
+  private lastMountOptions: MountOptions = {};
   private uniformDirty: Uint8Array;
   private onMouse: ((e: MouseEvent) => void) | null = null;
   private slave = false;
@@ -121,14 +129,33 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     return this.cfg;
   }
 
-  constructor(config: ShaderInstanceConfig) {
+  get type() {
+    return this.cfg.metadata.shaderType;
+  }
+
+  get id() {
+    return this.cfg.shaderId;
+  }
+
+  private pendingAugments: ShaderFrameInstance[] = [];
+  /** Last spatial augment in the canvas_item chain, or null when drawing the base pass only. */
+  private augmentDisplayHead: ShaderLabRuntime | null = null;
+
+  constructor(config: ShaderInstanceConfig, options?: Record<string, unknown> & MountOptions) {
     this.cfg = config;
     const store: Record<string, unknown> = {};
     this.uniforms = store;
     const uniforms = config.metadata.uniforms;
     this.uniformDirty = new Uint8Array(uniforms.length);
+    if (options?.augments?.length) {
+      this.pendingAugments = options.augments;
+    }
     for (let i = 0; i < uniforms.length; i++) {
       const u = uniforms[i]!;
+      if (options && options[u.name] !== undefined) {
+        store[`__${u.name}`] = this.clampIfNeeded(u, options[u.name]);
+        this.uniformDirty[i] = 1;
+      }
       Object.defineProperty(store, u.name, {
         enumerable: true,
         configurable: true,
@@ -145,8 +172,20 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
           }
         },
       });
-      store[`__${u.name}`] = u.mousePosition ? ([0, 0] as unknown) : undefined;
+      if (store[`__${u.name}`] === undefined) {
+        store[`__${u.name}`] = u.mousePosition ? ([0, 0] as unknown) : undefined;
+      }
     }
+  }
+
+  set(param: string, value: unknown): void {
+    const idx = this.cfg.metadata.uniforms.findIndex((u) => u.name === param);
+    if (idx === -1) return;
+    const u = this.cfg.metadata.uniforms[idx]!;
+    if (u.mutable === false) {
+      throw new Error(`[shaderlab] E0402: Uniform '${param}' is not mutable`);
+    }
+    (this.uniforms as Record<string, unknown>)[param] = value;
   }
 
   private markAllUserUniformsDirty(): void {
@@ -180,7 +219,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
   private effectiveDevicePixelRatio(): number {
     const dpr =
       typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
-    const cap = this.lastAttachOptions.maxDevicePixelRatio;
+    const cap = this.lastMountOptions.maxDevicePixelRatio;
     if (cap != null && Number.isFinite(cap) && cap > 0) {
       return Math.min(dpr, cap);
     }
@@ -221,12 +260,28 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       const [lo, hi] = u.range;
       if (v < lo || v > hi) {
         console.warn(
-          `[shaderlab] H0401 [Hazard] — uniform "${u.name}" out of range; clamped to [${lo}, ${hi}]`,
+          `[shaderlab] H0401 [Hazard] ΓÇö uniform "${u.name}" out of range; clamped to [${lo}, ${hi}]`,
         );
         return Math.min(hi, Math.max(lo, v));
       }
     }
     return v;
+  }
+
+  /** @internal Wire upstream for canvas-fed spatial augments or composed pipelines. */
+  _setPartner(upstream: ShaderLabRuntime): void {
+    this.partner = upstream;
+  }
+
+  /** @internal Walk `partner` chain (feeder → augments → post). */
+  _partnerChain(): ShaderLabRuntime[] {
+    const chain: ShaderLabRuntime[] = [];
+    let p: ShaderLabRuntime | null = this.partner;
+    while (p) {
+      chain.push(p);
+      p = p.partner;
+    }
+    return chain;
   }
 
   /** Internal: share GL with a postprocess or spatial (augment) parent that owns the RAF loop. */
@@ -241,13 +296,46 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     if (!this.program) {
       this.buildProgram();
     }
+    if (this.cfg.metadata.shaderType === "spatial" && this.cfg.metadata.requiresCanvasFeed) {
+      this.ensureFbo();
+    }
   }
 
-  attach(canvas: HTMLCanvasElement, options?: AttachOptions): void {
-    if (this.raf !== 0) {
-      this.detach();
+  /** @internal Ensure every upstream `partner` in the chain shares this GL context. */
+  _ensurePartnerChainSlaves(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement): void {
+    for (const node of this._partnerChain()) {
+      node._ensureSlave(gl, canvas);
     }
-    this.lastAttachOptions = { ...options };
+  }
+
+  mount(target: HTMLElement | HTMLCanvasElement, options?: MountOptions): void {
+    let canvas: HTMLCanvasElement;
+    const maybeCanvas = target as HTMLCanvasElement;
+    if (typeof maybeCanvas.getContext === "function") {
+      canvas = maybeCanvas;
+    } else if (typeof HTMLElement !== "undefined" && target instanceof HTMLElement) {
+      const existing = target.querySelector("canvas");
+      if (existing && (existing as HTMLCanvasElement).getContext) {
+        canvas = existing as HTMLCanvasElement;
+      } else {
+        canvas = document.createElement("canvas");
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        canvas.style.display = "block";
+        target.appendChild(canvas);
+      }
+    } else {
+      throw new Error(
+        "[shaderlab] mount() expects an HTMLCanvasElement or an HTMLElement container",
+      );
+    }
+    if (this.raf !== 0) {
+      this.unmount();
+    }
+    this.lastMountOptions = { ...options };
+    if (options?.augments?.length) {
+      this.pendingAugments = options.augments;
+    }
     this.lastBlendKey = undefined;
     this.lastCullDisabled = undefined;
     this.currentGlProgram = null;
@@ -279,7 +367,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] postprocess requires attach(canvas, { feedFrom: upstreamShaderInstance })",
+          "[shaderlab] postprocess requires mount(canvas, { feedFrom: upstreamShaderInstance })",
         );
       }
       if (!isValidPostFeedPartner(p)) {
@@ -288,13 +376,13 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
         );
       }
       this.partner = p;
-      this.partner._ensureSlave(this.gl, canvas);
+      this._ensurePartnerChainSlaves(this.gl, canvas);
       this.ensureFbo();
     } else if (meta.shaderType === "spatial" && meta.requiresCanvasFeed) {
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires attach(canvas, { feedFrom: canvas_item or canvas-fed spatial instance })",
+          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires mount(canvas, { feedFrom: canvas_item or canvas-fed spatial instance })",
         );
       }
       if (!isValidSpatialAugmentFeedPartner(p)) {
@@ -303,8 +391,22 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
         );
       }
       this.partner = p;
-      this.partner._ensureSlave(this.gl, canvas);
+      this._ensurePartnerChainSlaves(this.gl, canvas);
       this.ensureFbo();
+    }
+
+    if (meta.shaderType === "canvas_item" && this.pendingAugments.length && this.gl) {
+      let upstream: ShaderLabRuntime = this;
+      for (const aug of this.pendingAugments) {
+        if (aug instanceof ShaderLabRuntime) {
+          aug._setPartner(upstream);
+          aug._ensureSlave(this.gl, canvas);
+          upstream = aug;
+        }
+      }
+      this.augmentDisplayHead = upstream !== this ? upstream : null;
+    } else {
+      this.augmentDisplayHead = null;
     }
 
     this.resizeObs = new ResizeObserver(() => this.scheduleResizeSync());
@@ -374,7 +476,7 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     }
   }
 
-  detach(): void {
+  unmount(): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     if (this.resizeFlushRaf !== 0) {
@@ -417,13 +519,14 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
     this.gl = null;
     this.canvas = null;
     this.partner = null;
+    this.augmentDisplayHead = null;
     this.lastBlendKey = undefined;
     this.lastCullDisabled = undefined;
     this.currentGlProgram = null;
-    this.lastAttachOptions = {};
+    this.lastMountOptions = {};
   }
 
-  _slabHotSwap(next: ShaderInstance<Record<string, unknown>>): void {
+  _slabHotSwap(next: ShaderFrameInstance<Record<string, unknown>>): void {
     if (!this.gl) return;
     const peer = next as unknown as ShaderLabRuntime;
     if (!(peer instanceof ShaderLabRuntime)) return;
@@ -613,6 +716,14 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
         gl.bindTexture(gl.TEXTURE_2D, null);
       }
     } else if (!this.slave) {
+      if (meta.shaderType === "canvas_item" && this.augmentDisplayHead) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        this.augmentDisplayHead.drawScenePass(t, w, h);
+        return;
+      }
       this.prepare2dPass(gl);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, w, h);
@@ -832,9 +943,9 @@ export class ShaderLabRuntime implements ShaderInstance<Record<string, unknown>>
   }
 }
 
-export function createShaderInstance(config: ShaderInstanceConfig): ShaderInstance<Record<string, unknown>> {
-  return new ShaderLabRuntime(config);
+export function createShaderInstance(
+  config: ShaderInstanceConfig,
+  options?: Record<string, unknown> & MountOptions,
+): ShaderFrameInstance<Record<string, unknown>> {
+  return new ShaderLabRuntime(config, options);
 }
-
-export { useShader } from "../runtime/use-shader.js";
-export type { SlabModule } from "../runtime/use-shader.js";

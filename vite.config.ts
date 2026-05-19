@@ -9,6 +9,7 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(root, "src/index.ts"),
+        internal: resolve(root, "src/internal.ts"),
         "vite/entry": resolve(root, "src/vite/entry.ts"),
         "react/index": resolve(root, "src/react/index.ts"),
         "vue/index": resolve(root, "src/vue/index.ts"),

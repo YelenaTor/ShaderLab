@@ -1,3 +1,4 @@
+/** @vitest-environment happy-dom */
 import { describe, expect, it, vi } from "vitest";
 import { ShaderLabRuntime } from "../../src/vite/runtime.js";
 import type { ShaderInstanceConfig } from "../../src/vite/runtime.js";
@@ -111,14 +112,14 @@ describe("ShaderLabRuntime mouse_position", () => {
     const rt = new ShaderLabRuntime(cfg);
     const u = rt.uniforms as Record<string, unknown>;
 
-    rt.uniforms.mouse = [0.9, 0.9] as unknown;
+    rt.set('mouse', [0.9, 0.9] as unknown);
     expect(u.__mouse).toEqual([0, 0]);
 
-    rt.attach(canvas);
+    rt.mount(canvas);
     canvas.listeners.mousemove?.({ clientX: 110, clientY: 45 } as MouseEvent);
     expect(u.__mouse).toEqual([0.5, 0.75]);
 
-    rt.detach();
+    rt.unmount();
     expect(canvas.listeners.mousemove).toBeUndefined();
     vi.unstubAllGlobals();
   });
@@ -147,15 +148,15 @@ describe("ShaderLabRuntime attach options", () => {
     const gl = createMockGl();
     const canvas = createCanvas(gl);
     const rt = new ShaderLabRuntime(cfg);
-    rt.attach(canvas, { maxDevicePixelRatio: 1 });
+    rt.mount(canvas, { maxDevicePixelRatio: 1 });
     expect(canvas.width).toBe(200);
 
-    rt.detach();
+    rt.unmount();
     const canvas2 = createCanvas(gl);
     const rt2 = new ShaderLabRuntime(cfg);
-    rt2.attach(canvas2);
+    rt2.mount(canvas2);
     expect(canvas2.width).toBe(400);
-    rt2.detach();
+    rt2.unmount();
     vi.unstubAllGlobals();
   });
 });

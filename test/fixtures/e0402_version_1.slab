@@ -1,0 +1,5 @@
+<shaderlab version="1.0">
+  <shader_frame id="demo" type="canvas_item">
+    <fragment><![CDATA[COLOR = vec4(UV, 0.0, 1.0);]]></fragment>
+  </shader_frame>
+</shaderlab>

@@ -1,5 +1,5 @@
-import { findBuiltinMisuse } from "./builtins.js";
-import type { ShaderlabAst, RenderMode, ShaderType } from "./types.js";
+import { findBuiltinMisuse, scanBuiltinStages } from "./builtins.js";
+import type { SlabModule, RenderMode, ShaderType } from "./types.js";
 import { diagnostic } from "./errors.js";
 import type { ShaderlabDiagnostic } from "./errors.js";
 import { isHintRecognized, parseDefaultValue, parseHint, valueInRange } from "./hints.js";
@@ -21,24 +21,12 @@ const BLEND_MODES = new Set<RenderMode>(["blend_add", "blend_multiply", "blend_p
 
 const ID_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
-/** Semantic validation; mutates `ast.shaders[].renderModes` from `renderModeTokens`. */
-export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabDiagnostic[] {
+/** Semantic validation; mutates `ast.frames[].renderModes` from `renderModeTokens`. */
+export function validate(ast: SlabModule, filename = "input.slab"): ShaderlabDiagnostic[] {
   const diagnostics: ShaderlabDiagnostic[] = [];
 
-  if (ast.version && ast.version !== "1.0") {
-    diagnostics.push(
-      diagnostic(
-        "E0102",
-        `Unknown \`version\` value "${ast.version}"`,
-        filename,
-        1,
-        'Use version="1.0"',
-      ),
-    );
-  }
-
   const seenIds = new Set<string>();
-  for (const sh of ast.shaders) {
+  for (const sh of ast.frames) {
     if (sh.id && seenIds.has(sh.id)) {
       diagnostics.push(
         diagnostic(
@@ -55,7 +43,7 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
 
     if (!sh.id.trim()) {
       diagnostics.push(
-        diagnostic("E0201", "Missing `id` attribute on `<shader>`", filename, sh.line ?? 1),
+        diagnostic("E0201", "Missing `id` attribute on `<shader_frame>`", filename, sh.line ?? 1),
       );
     } else if (!ID_RE.test(sh.id)) {
       diagnostics.push(
@@ -70,7 +58,7 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
 
     if (!sh.typeRaw.trim()) {
       diagnostics.push(
-        diagnostic("E0203", "Missing `type` attribute on `<shader>`", filename, sh.line ?? 1),
+        diagnostic("E0203", "Missing `type` attribute on `<shader_frame>`", filename, sh.line ?? 1),
       );
     } else if (!VALID_SHADER_TYPES.has(sh.typeRaw)) {
       diagnostics.push(
@@ -219,7 +207,53 @@ export function validate(ast: ShaderlabAst, filename = "input.slab"): ShaderlabD
         );
       }
     }
+
+    const referencedStages = scanBuiltinStages(vb, fb);
+    const referenced = Array.from(referencedStages.combined);
+    if (sh.typeRaw === "postprocess") {
+        if (!referenced.includes("SCREEN_TEXTURE") && !referenced.includes("SCREEN_UV")) {
+          diagnostics.push(
+            diagnostic(
+              "W0402",
+              "Unused `SCREEN_TEXTURE` or `SCREEN_UV` in postprocess frame",
+              filename,
+              sh.line ?? 1,
+            ),
+          );
+        }
+      }
+
+    if (sh.typeRaw === "postprocess" && sh.vertexBody !== null) {
+      diagnostics.push(diagnostic("E0405", "`<vertex>` body declared on a `postprocess` frame", filename, sh.line ?? 1));
+    }
+
+    if (sh.typeRaw === "spatial") {
+      if (sh.mode === null) {
+        diagnostics.push(diagnostic("W0402", "`mode` attribute omitted on spatial frame. Defaulting to `standalone`.", filename, sh.line ?? 1));
+        sh.mode = "standalone";
+      }
+
+      if (sh.mode === "standalone") {
+        if (referenced.includes("CANVAS_TEXTURE") || referenced.includes("CANVAS_UV")) {
+          diagnostics.push(diagnostic("E0406", "`CANVAS_TEXTURE` or `CANVAS_UV` referenced in a standalone spatial.", filename, sh.line ?? 1));
+        }
+      } else if (sh.mode === "augment") {
+        if (sh.vertexBody !== null) {
+          diagnostics.push(diagnostic("E0407", "`<vertex>` body declared on a spatial augment frame.", filename, sh.line ?? 1));
+        }
+        if (!referenced.includes("CANVAS_TEXTURE") && !referenced.includes("CANVAS_UV")) {
+          diagnostics.push(diagnostic("W0403", "Spatial augment does not reference `CANVAS_TEXTURE` or `CANVAS_UV`.", filename, sh.line ?? 1));
+        }
+      }
+    }
+
+    for (const u of sh.uniforms) {
+      if (u.deferred && !u.mutable) {
+        diagnostics.push(diagnostic("E0403", "`deferred=\"true\"` combined with `mutable=\"false\"`.", filename, u.line ?? sh.line ?? 1));
+      }
+    }
   }
 
   return diagnostics;
 }
+

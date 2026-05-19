@@ -1,14 +1,49 @@
-# ShaderLab — API reference (`shader_frame`)
+# ShaderLab — API reference (Schema 2.0, `shader_frame`)
 
-> **Companion to [`LANGUAGE.md`](./LANGUAGE.md).** That document is the normative
-> reference for what the compiler recognises **today** (`0.3.x`). This document covers
-> the **`shader_frame` redesign** landing across the `0.4.x` cycle and locking at
-> `1.0.0`.
+> **Schema 2.0 (`shader_frame`)** — testing channel (`npm install @yoruxiii/shaderlab@testing`).
+> Short overview: [NEW_API.md](../NEW_API.md). **Schema 1.0** (`<shader>`, `useShader`): [LANGUAGE.md](./LANGUAGE.md), [USAGE.md](./USAGE.md).
 >
-> **Status by section:**
-> - ✅ **Live in `0.3.1`:** The `<shader>` deprecation warning (`W0401`).
-> - 🔬 **Testing channel (`0.4.0-testing.0`+):** Everything else in this document.
->   Do not build production dependencies against testing builds.
+> **Live in `0.4.0-testing.0`:** `<shader_frame>`, `version="2.0"`, uniform `mutable` / `deferred`, spatial `mode`, `shader_frame.*` call sites, augment lists in `{}`, `ShaderFrameInstance` (`mount` / `unmount` / `set`), **`E04xx` / `W04xx`**, mutable-only `.d.ts` options.
+>
+> **Not in `0.4.0-testing.0` (planned `0.5.x`):** `<contract>` blocks, **`E05xx`** augment-contract validation, typed augment slots in `.d.ts`.
+
+---
+
+## Consumer lifecycle
+
+Each call `shader_frame.<id>(libraryModule, options?)` returns a **`ShaderFrameInstance`**.
+
+```ts
+import { shader_frame } from "@yoruxiii/shaderlab";
+import fx from "./effects.slab";
+
+const water = shader_frame.water(fx) {
+  speed: 1.5,
+  augment.ripple(fx),
+};
+
+water.mount(document.querySelector("#hero")!); // canvas or container
+water.set("speed", 2.0);
+water.unmount();
+```
+
+| Method | Role |
+|--------|------|
+| **`mount(target)`** | Attach to an `HTMLCanvasElement` or an `HTMLElement` (creates a child canvas). |
+| **`unmount()`** | Stop the loop, detach observers, release WebGL resources. |
+| **`set(name, value)`** | Update a **mutable** uniform at runtime. |
+
+Framework adapters (**`ShaderFrame`**, **`useShaderFrame`**, Svelte **`shaderframe`**) receive a **`ShaderFrameInstance`** and only call **`mount` / `unmount`** — they do not import slab paths or build option objects.
+
+```tsx
+import { ShaderFrame } from "@yoruxiii/shaderlab/react";
+const chroma = shader_frame.chroma(hello);
+<ShaderFrame frame={chroma} />
+```
+
+**Multi-pass on one slab:** Calling a **`postprocess`** frame auto-wires the slab’s upstream **`canvas_item`** and any **`augment.*`** entries in `{}`. You **`mount`** the returned instance once — no app-level **`feedFrom`**. Mutable uniforms for the feeder and terminal can share one `{}` block (e.g. `shader_frame.bloom(lib) { speed: 1.2, threshold: 0.7 }`); keys route by each frame’s mutable uniform list.
+
+Passing **`feedFrom`** to **`mount()`** on a composed postprocess frame always emits a **console warning** and uses the composed pipeline. See [examples/vanilla-vite](../examples/vanilla-vite).
 
 ---
 
@@ -63,11 +98,9 @@ authoring type and the anchor point for the rendering pipeline.
     <uniform name="tile_size" type="float"                        mutable="false" default="4.0" />
   </uniforms>
   <fragment><![CDATA[
-    void fragment() {
-      vec2 uv = UV * tile_size;
-      float wave = sin(uv.x + TIME * speed) * 0.5 + 0.5;
-      COLOR = vec4(tint * wave, 1.0);
-    }
+vec2 uv = UV * tile_size;
+float wave = sin(uv.x + TIME * speed) * 0.5 + 0.5;
+COLOR = vec4(tint * wave, 1.0);
   ]]></fragment>
 </shader_frame>
 ```
@@ -75,13 +108,14 @@ authoring type and the anchor point for the rendering pipeline.
 **Consuming it (TypeScript):**
 
 ```ts
-// Use with defaults
-shader_frame.water(anime.slab)
+import { shader_frame } from "@yoruxiii/shaderlab";
+import anime from "./anime.slab";
 
-// Override mutable parameters at the use site
-shader_frame.water(anime.slab) {
+shader_frame.water(anime);
+
+shader_frame.water(anime) {
   speed: 2.0,
-  tint: [0.0, 0.8, 1.0]
+  tint: [0.0, 0.8, 1.0],
 }
 ```
 
@@ -89,10 +123,10 @@ shader_frame.water(anime.slab) {
 block. Augments execute in declared order — `ripple` first, `caustics` second:
 
 ```ts
-shader_frame.water(anime.slab) {
+shader_frame.water(anime) {
   speed: 2.0,
-  augment.ripple(spatials.slab),
-  augment.caustics(spatials.slab)
+  augment.ripple(anime),
+  augment.caustics(anime),
 }
 ```
 
@@ -106,11 +140,11 @@ rather than drawing directly to an element.
 
 **Available builtins:** `SCREEN_TEXTURE`, `SCREEN_UV`, `TIME`, `RESOLUTION`.
 
-`postprocess` frames are **not attached to elements** — they apply to the pipeline.
-A pipeline containing a `canvas_item` and a `postprocess` in the same slab runs them
-in that order automatically.
+`postprocess` samples the upstream pass via **`SCREEN_*`** builtins. Mount the post
+instance on the same canvas as the feeder, with the feeder instance passed as
+`feedFrom` when wiring manually (see vanilla example).
 
-**No augmentation is valid after a `postprocess`** — the compiler errors if attempted.
+**No augmentation is valid on or after a `postprocess` frame** — the compiler errors (`E0404`, `E0409`).
 
 **Declaring a frame:**
 
@@ -121,11 +155,9 @@ in that order automatically.
     <uniform name="intensity"  type="float" hint="range(0.0, 3.0)" mutable="true" default="1.2" />
   </uniforms>
   <fragment><![CDATA[
-    void fragment() {
-      vec4 base = texture(SCREEN_TEXTURE, SCREEN_UV);
-      float lum = dot(base.rgb, vec3(0.2126, 0.7152, 0.0722));
-      COLOR = lum > threshold ? base * intensity : base;
-    }
+vec4 base = texture(SCREEN_TEXTURE, SCREEN_UV);
+float lum = dot(base.rgb, vec3(0.2126, 0.7152, 0.0722));
+COLOR = lum > threshold ? base * intensity : base;
   ]]></fragment>
 </shader_frame>
 ```
@@ -133,12 +165,10 @@ in that order automatically.
 **Consuming it:**
 
 ```ts
-shader_frame.bloom(fx.slab)
+import fx from "./fx.slab";
 
-shader_frame.bloom(fx.slab) {
-  threshold: 0.75,
-  intensity: 1.5
-}
+const bloom = shader_frame.bloom(fx) { threshold: 0.75, intensity: 1.5 };
+// bloom.mount(canvas, { feedFrom: upstreamInstance });
 ```
 
 ---
@@ -157,19 +187,13 @@ A fullscreen pass that operates in two modes, declared explicitly in the slab:
 
 ```xml
 <shader_frame id="ripple" type="spatial" mode="augment">
-  <contract>
-    <consumes>rgba</consumes>
-    <produces>rgba</produces>
-  </contract>
   <uniforms>
     <uniform name="amplitude" type="float" hint="range(0.0, 1.0)" mutable="true" default="0.3" />
     <uniform name="frequency" type="float" hint="range(0.1, 10.0)" mutable="true" default="4.0" />
   </uniforms>
   <fragment><![CDATA[
-    void fragment() {
-      vec2 offset = vec2(sin(CANVAS_UV.y * frequency + TIME) * amplitude, 0.0);
-      COLOR = texture(CANVAS_TEXTURE, CANVAS_UV + offset);
-    }
+vec2 offset = vec2(sin(CANVAS_UV.y * frequency + TIME) * amplitude, 0.0);
+COLOR = texture(CANVAS_TEXTURE, CANVAS_UV + offset);
   ]]></fragment>
 </shader_frame>
 ```
@@ -197,14 +221,18 @@ recognises the sentinel and skips the initial upload, waiting for the consumer t
 a value. Deferred parameters are typed as `Deferred | <base_type>` in the generated
 `.d.ts`, distinguishing intent from an accidental zero.
 
-**Override error codes (`E04xx`):**
+**Schema 2.0 error codes (`E04xx` / `W04xx`):**
 
 | Code | Condition |
 |------|-----------|
-| `E0401` | Override target not declared in frame |
-| `E0402` | Override target exists but is not mutable |
-| `E0403` | Type mismatch on override value |
-| `W0401` | `<shader>` tag used — deprecated, replace with `<shader_frame>` |
+| `E0401` | Legacy `<shader>` element (hard error) |
+| `E0402` | Root `version` is not `"2.0"` |
+| `E0403` | `deferred="true"` with `mutable="false"` |
+| `E0404` | Augment on a `postprocess` frame |
+| `E0405`–`E0409` | Invalid vertex / spatial / pipeline placement |
+| `W0401` | Deferred uniform never supplied at a known call site |
+| `W0402` | Spatial `mode` omitted (defaults `standalone`) |
+| `W0403` | Augment spatial does not reference `CANVAS_*` |
 
 ---
 
@@ -214,53 +242,14 @@ Augments are attached inside the options block at the use site, using `augment.n
 They execute in **declared load order** — deterministic, statically known at compile time.
 
 ```ts
-shader_frame.water(water_effects.slab) {
+shader_frame.water(water_effects) {
   speed: 1.2,
-  augment.ripple(water_effects.slab),   // runs first
-  augment.caustics(water_effects.slab)  // runs second
+  augment.ripple(water_effects),   // runs first
+  augment.caustics(water_effects), // runs second
 }
 ```
 
-The compiler validates the full chain — `canvas_item` output → `ripple` contract →
-`caustics` contract — at build time. A broken handoff is a compile error pointing at
-the specific link.
-
----
-
-## Augment contracts
-
-Every `spatial` frame declared as `mode="augment"` carries a **contract** — a declaration
-of what it consumes at its input boundary and produces at its output boundary.
-
-```xml
-<contract>
-  <consumes>rgba</consumes>
-  <produces>rgba</produces>
-  <exclusive_with>distort_heavy</exclusive_with>  <!-- optional -->
-</contract>
-```
-
-**Contract fields:**
-
-| Field | Meaning |
-|-------|---------|
-| `<consumes>` | Data type expected at the input boundary. |
-| `<produces>` | Data type delivered at the output boundary. |
-| `<exclusive_with>` | Frame IDs this augment cannot coexist with in the same chain. Multiple `<exclusive_with>` elements are allowed. |
-| `order_sensitive` attribute | When `true`, A→B and B→A produce meaningfully different results. Compiler warns on known-problematic ordering (`W0501`). |
-
-**Augment chain error codes (`E05xx`):**
-
-| Code | Condition |
-|------|-----------|
-| `E0501` | Augment input / output type mismatch in chain |
-| `E0502` | Mutually exclusive augments declared in the same chain |
-| `E0503` | Augment applied to a frame type that does not accept augmentation |
-| `W0501` | Order-sensitive augments in a potentially problematic sequence |
-
-> **Note:** `E05xx` codes land in `0.5.x`. They are documented here as a forward
-> reference so contract authors can write `<contract>` blocks now and have them
-> validated automatically when the release ships.
+Augment **order** is validated (`E0404`–`E0409`). **Contract** validation (`<consumes>` / `<produces>`, **`E05xx`**) is **0.5.x** — not implemented in `0.4.0-testing.0`.
 
 ---
 
@@ -296,15 +285,20 @@ functional domain. Consumers cherry-pick what they need.
 ```
 
 ```ts
-// Full water scene — one slab, composed at the use site
-shader_frame.water(water_effects.slab) {
+import water_effects from "./water-effects.slab";
+
+const water = shader_frame.water(water_effects) {
   speed: 1.5,
-  augment.ripple(water_effects.slab),
-  augment.caustics(water_effects.slab)
-}
-shader_frame.bloom(water_effects.slab) {
-  threshold: 0.7
-}
+  augment.ripple(water_effects),
+  augment.caustics(water_effects),
+};
+water.mount(canvas);
+
+const bloom = shader_frame.bloom(water_effects) {
+  threshold: 0.7,
+  augment.ripple(water_effects),
+};
+bloom.mount(canvas);
 ```
 
 ---
@@ -318,10 +312,10 @@ the generated types reflect the frame contract directly:
 |------|--------------------------------------|
 | Mutable parameters | Optional properties in the options type |
 | Sealed parameters | **Absent** — cannot be set at the use site |
-| Deferred parameters | `Deferred \| <base_type>` |
-| Augment slots | Typed by the frame's declared augment contract — only compatible frames are assignable |
+| Deferred parameters | `Deferred \| <base_type>` (infrastructure present; wiring incomplete) |
+| `readonly` mouse_position | Always present in options when declared |
 
-TypeScript catches most contract violations before the ShaderLab compiler even runs.
+Augment-contract typing in `.d.ts` is planned for **0.5.x**.
 
 ---
 
@@ -329,10 +323,10 @@ TypeScript catches most contract violations before the ShaderLab compiler even r
 
 | Version | Change |
 |---------|--------|
-| **`0.3.1`** | `<shader>` emits `W0401` deprecation warnings pointing at `<shader_frame>` |
-| `0.4.0-testing.0` | `shader_frame` API lands on the testing channel |
+| **`0.3.1`** | `<shader>` deprecation warnings on stable (see **0.3.1** changelog) |
+| **`0.4.0-testing.0`** | `shader_frame` API lands on the testing channel -- **live** |
 | `0.4.0` | `shader_frame` stable. `<shader>` removed or hard-errored |
-| `0.5.x` | Augment contracts (`E05xx`), coexistence typing, spatial grounding |
+| `0.5.x` | Coexistence typing, spatial grounding, deferred param wiring |
 | `1.0.0` | Full API contract locked |
 
 The **`testing`** channel moves independently of stable. Testing versions are experimental —

@@ -13,7 +13,7 @@ ShaderLab targets teams already shipping **Vite-built front ends** who want **de
 Reasonable examples:
 
 - Full-screen or inset **canvas effects**, typography overlays, image manipulation passes on quads.
-- **Multi-pass setups**: draw into **`canvas_item`**, optionally **`spatial`** (augment), then **`postprocess`** — all on one canvas via **`useShader`** from **0.3.1** (see version guide).
+- **Multi-pass setups**: **`canvas_item` → spatial (augment) → `postprocess`** on one canvas — **`useShader`** on Schema **1.0** (`latest`), or **`shader_frame` + augments** on Schema **2.0** (`@testing`).
 
 Poor fits:
 
@@ -30,7 +30,28 @@ Constraints worth accepting upfront:
 
 Use **`npm ls @yoruxiii/shaderlab`** (and **`peerDependency`** warnings from npm) as ground truth for **your** tree; tables below describe upstream ShaderLab releases.
 
-### 0.3.x — current stable (`@yoruxiii/shaderlab@^0.3`, npm **`latest`**)
+### 0.4.x — Schema 2.0 (`shader_frame`, `@testing`)
+
+> **Schema 2.0 (`shader_frame`)** — experimental. Install: `npm install @yoruxiii/shaderlab@testing`. Blurb: [NEW_API.md](../NEW_API.md).
+
+| Topic | Behaviour |
+|-------|-----------|
+| **Slab** | Root `version="2.0"`; `<shader_frame id="…">` units (library, many per file). Legacy `<shader>` → **`E0401`**. |
+| **Page** | `shader_frame.<id>(importedLibrary) { … }` → `ShaderFrameInstance`; then **`mount` / `unmount` / `set`**. |
+| **Options `{}`** | Only **mutable** / **deferred** uniforms + positional **`augment.*`** entries. |
+| **Diagnostics** | **`E04xx` / `W04xx`** — see [API.md](./API.md). **`E05xx` / `<contract>`** are **not** in this release. |
+| **Types** | `.d.ts` options include mutable (and special cases like `mouse_position`) only. |
+
+**Adoption sketch:**
+
+1. Add the Vite plugin (same as 1.0).
+2. Author slabs under Schema 2.0.
+3. `import lib from "./fx.slab"`; `const fx = shader_frame.waves(lib) { speed: 2 }; fx.mount(canvas)`.
+4. Framework adapters: pass the **instance**, not the slab module.
+
+Full reference: [API.md](./API.md). Release notes: [CHANGELOG.md](../CHANGELOG.md).
+
+### 0.3.x — Schema 1.0 (`<shader>`, npm **`latest`**)
 
 | Topic | Behaviour |
 |--------|-----------|
@@ -119,7 +140,9 @@ Safe-by-default writers patch recognised configs without deleting manual edits; 
 
 ---
 
-## Runtime discipline (0.3.x)
+## Runtime discipline — Schema 1.0 only (`0.3.x`)
+
+> On **Schema 2.0**, use **`ShaderFrameInstance.mount` / `unmount`** instead of `useShader` / `attach`. Mount options (`visibilityPause`, `maxDevicePixelRatio`, …) apply to **`mount(target, options?)`** the same way they applied to **`attach`**.
 
 - Prefer **`useShader(module)`** when one slab contains multiple shaders — ordering handles **`feedFrom`** wiring for postprocessing automatically.
 - Prefer named **`attach`** exports only when you deliberately reorder chains or feed uniforms manually.
@@ -153,8 +176,9 @@ Details remain in **[README.md](../README.md)** (“Vanilla runtime”, “Desig
 
 | Doc | Purpose |
 |-----|---------|
-| [API.md](./API.md) | `shader_frame` API reference and migration guide (`0.4.x`+) |
-| [LANGUAGE.md](./LANGUAGE.md) | `.slab` grammar, builtins, hints, `render_mode`, diagnostic codes |
+| [NEW_API.md](../NEW_API.md) | Short **Schema 2.0** blurb |
+| [API.md](./API.md) | Full **Schema 2.0** reference + migration |
+| [LANGUAGE.md](./LANGUAGE.md) | **Schema 1.0** grammar (+ 2.0 pointer) |
 | [CHANGELOG.md](../CHANGELOG.md) | Version-to-version integrator-facing release notes |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Maintainer workflow & compiler/runtime boundaries |
 

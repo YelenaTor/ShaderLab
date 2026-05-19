@@ -1,8 +1,8 @@
-<shaderlab version="1.0">
-  <shader id="a" type="canvas_item">
+<shaderlab version="2.0">
+  <shader_frame id="a" type="canvas_item">
     <uniforms>
       <uniform name="my-uniform" type="float" default="0.0" />
     </uniforms>
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>

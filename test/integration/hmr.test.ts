@@ -3,11 +3,11 @@ import { compileSlab } from "../../src/compiler/compile.js";
 import shaderlab from "../../src/vite/plugin.js";
 
 describe("HMR emit", () => {
-  it("emits __shaders map and import.meta.hot accept after two compiles", () => {
-    const slab1 = `<shaderlab version="1.0">
-  <shader id="demo" type="canvas_item">
+  it("emits __invokeSlabFrame and import.meta.hot accept after two compiles", () => {
+    const slab1 = `<shaderlab version="2.0">
+  <shader_frame id="demo" type="canvas_item">
     <fragment><![CDATA[COLOR = vec4(1.0, 0.0, 0.0, 1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>`;
     const slab2 = slab1.replace("1.0, 0.0", "0.0, 1.0");
     const plugin = shaderlab();
@@ -19,7 +19,7 @@ describe("HMR emit", () => {
       );
     const a = run(slab1) as { code: string };
     const b = run(slab2) as { code: string };
-    expect(a.code).toContain("export const __shaders");
+    expect(a.code).toContain("__invokeSlabFrame");
     expect(a.code).toContain("import.meta.hot");
     expect(b.code).toContain("0.0, 1.0, 0.0, 1.0");
     const c1 = compileSlab(slab1, "panel.slab");

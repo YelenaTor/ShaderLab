@@ -1,4 +1,4 @@
-<shaderlab version="1.0">
-  <shader id="a" type="canvas_item">
-  </shader>
+<shaderlab version="2.0">
+  <shader_frame id="a" type="canvas_item">
+  </shader_frame>
 </shaderlab>

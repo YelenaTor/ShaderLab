@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "shaderlab": "file:../.."
+    "@yoruxiii/shaderlab": "file:../.."
   },
   "devDependencies": {
     "typescript": "^5.7.0",

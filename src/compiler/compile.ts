@@ -1,12 +1,12 @@
 import { parse } from "./parser.js";
 import { validate } from "./validator.js";
 import { generate } from "./codegen.js";
-import type { CompilerOutput, ShaderlabAst } from "./types.js";
+import type { CompilerOutput, SlabModule } from "./types.js";
 import type { ShaderlabDiagnostic } from "./errors.js";
 import { CompileError } from "./errors.js";
 
 export interface CompileResult {
-  ast: ShaderlabAst;
+  ast: SlabModule;
   diagnostics: ShaderlabDiagnostic[];
   output: CompilerOutput | null;
 }

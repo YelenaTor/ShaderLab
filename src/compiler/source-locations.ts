@@ -33,7 +33,7 @@ export function offsetToLine(lineIndex: number[], offset: number): number {
 
 /** For each `<shader …>` opening tag in source order, return its starting line. */
 export function findShaderLines(src: string, lineIndex: number[]): number[] {
-  const re = /<shader\b/g;
+  const re = /<shader(?:_frame)?\b/g;
   const out: number[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
@@ -48,7 +48,7 @@ export function findShaderLines(src: string, lineIndex: number[]): number[] {
  */
 export function findUniformLines(src: string, lineIndex: number[]): number[][] {
   const shaderOffsets: number[] = [];
-  const shaderRe = /<shader\b/g;
+  const shaderRe = /<shader(?:_frame)?\b/g;
   let sm: RegExpExecArray | null;
   while ((sm = shaderRe.exec(src)) !== null) {
     shaderOffsets.push(sm.index);

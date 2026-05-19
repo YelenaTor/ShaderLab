@@ -1,8 +1,8 @@
-<shaderlab version="1.0">
-  <shader id="main" type="canvas_item">
+<shaderlab version="2.0">
+  <shader_frame id="main" type="canvas_item">
     <vertex><![CDATA[
   gl_Position.xy += vec2(sin(TIME) * 0.02, 0.0);
     ]]></vertex>
     <fragment><![CDATA[COLOR = vec4(UV, 0.0, 1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>

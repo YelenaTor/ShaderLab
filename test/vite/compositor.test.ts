@@ -141,8 +141,8 @@ describe("3-stage compositor runtime", () => {
     );
     const canvasDraw = vi.spyOn(bg, "drawScenePass");
 
-    bg.attach(canvas);
-    space.attach(canvas, { feedFrom: bg });
+    bg.mount(canvas);
+    space.mount(canvas, { feedFrom: bg });
 
     const postFbo = {} as WebGLFramebuffer;
     gl.bindFramebuffer(gl.FRAMEBUFFER, postFbo);
@@ -152,8 +152,8 @@ describe("3-stage compositor runtime", () => {
     expect(gl.framebufferBindings.length).toBeGreaterThanOrEqual(2);
     expect(gl.framebufferBindings[gl.framebufferBindings.length - 1]).toBe(postFbo);
 
-    space.detach();
-    bg.detach();
+    space.unmount();
+    bg.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -180,16 +180,16 @@ describe("3-stage compositor runtime", () => {
     );
     const spatialFeed = vi.spyOn(space, "drawScenePass");
 
-    bg.attach(canvas);
-    space.attach(canvas, { feedFrom: bg });
-    pp.attach(canvas, { feedFrom: space });
+    bg.mount(canvas);
+    space.mount(canvas, { feedFrom: bg });
+    pp.mount(canvas, { feedFrom: space });
 
     (pp as unknown as { drawFrame(): void }).drawFrame();
     expect(spatialFeed).toHaveBeenCalled();
 
-    pp.detach();
-    space.detach();
-    bg.detach();
+    pp.unmount();
+    space.unmount();
+    bg.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -218,9 +218,9 @@ describe("3-stage compositor runtime", () => {
     const canvasDraw = vi.spyOn(bg, "drawScenePass");
     const spaceADraw = vi.spyOn(spaceA, "drawScenePass");
 
-    bg.attach(canvas);
-    spaceA.attach(canvas, { feedFrom: bg });
-    spaceB.attach(canvas, { feedFrom: spaceA });
+    bg.mount(canvas);
+    spaceA.mount(canvas, { feedFrom: bg });
+    spaceB.mount(canvas, { feedFrom: spaceA });
 
     const postFbo = {} as WebGLFramebuffer;
     gl.bindFramebuffer(gl.FRAMEBUFFER, postFbo);
@@ -230,9 +230,9 @@ describe("3-stage compositor runtime", () => {
     expect(canvasDraw).toHaveBeenCalled();
     expect(gl.framebufferBindings[gl.framebufferBindings.length - 1]).toBe(postFbo);
 
-    spaceB.detach();
-    spaceA.detach();
-    bg.detach();
+    spaceB.unmount();
+    spaceA.unmount();
+    bg.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -252,16 +252,16 @@ describe("3-stage compositor runtime", () => {
       }),
     );
 
-    bg.attach(canvas, { depthBuffer: true });
-    pp.attach(canvas, { feedFrom: bg });
+    bg.mount(canvas, { depthBuffer: true });
+    pp.mount(canvas, { feedFrom: bg });
 
     (pp as unknown as { drawFrame(): void }).drawFrame();
 
     expect(disable).toHaveBeenCalledWith(gl.DEPTH_TEST);
     expect(gl.drawArrays).toHaveBeenCalled();
 
-    pp.detach();
-    bg.detach();
+    pp.unmount();
+    bg.unmount();
     vi.unstubAllGlobals();
   });
 });

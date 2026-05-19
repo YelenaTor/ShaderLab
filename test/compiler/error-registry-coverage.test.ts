@@ -20,7 +20,12 @@ describe("§11 error code registry coverage", () => {
     const testSources = [
       readFileSync(join(here, "compile.test.ts"), "utf8"),
       readFileSync(join(here, "schema.test.ts"), "utf8"),
-      readFileSync(join(here, "deprecation.test.ts"), "utf8"),
+      readFileSync(join(here, "shader-frame.test.ts"), "utf8"),
+      readFileSync(join(here, "types-emit-mutable.test.ts"), "utf8"),
+      readFileSync(join(here, "../../src/vite/runtime.ts"), "utf8"),
+      readFileSync(join(here, "../../src/compiler/validator.ts"), "utf8"),
+      readFileSync(join(here, "../../src/compiler/errors.ts"), "utf8"),
+      readFileSync(join(here, "shader-frame-transform.test.ts"), "utf8"),
       readFileSync(join(here, "../vite/runtime.test.ts"), "utf8"),
       readFileSync(join(here, "../vite/hints.test.ts"), "utf8"),
     ].join("\n");

@@ -1,14 +1,14 @@
-<shaderlab version="1.0">
-  <shader id="bg" type="canvas_item">
+<shaderlab version="2.0">
+  <shader_frame id="bg" type="canvas_item">
     <uniforms>
       <uniform name="u_tex" type="sampler2D" hint="texture" />
     </uniforms>
     <fragment><![CDATA[COLOR = texture(TEXTURE, UV);]]></fragment>
-  </shader>
-  <shader id="pp" type="postprocess">
+  </shader_frame>
+  <shader_frame id="pp" type="postprocess">
     <fragment><![CDATA[COLOR = texture(SCREEN_TEXTURE, SCREEN_UV);]]></fragment>
-  </shader>
-  <shader id="overlay" type="canvas_item">
+  </shader_frame>
+  <shader_frame id="overlay" type="canvas_item">
     <fragment><![CDATA[COLOR = vec4(UV, 0.0, 1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>

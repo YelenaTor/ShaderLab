@@ -1,0 +1,29 @@
+<shaderlab version="2.0">
+  <shader_frame id="water" type="canvas_item">
+    <uniforms>
+      <uniform name="speed" type="float" mutable="true" default="1.0" />
+    </uniforms>
+    <fragment><![CDATA[
+COLOR = vec4(UV, sin(TIME * speed) * 0.5 + 0.5, 1.0);
+    ]]></fragment>
+  </shader_frame>
+  <shader_frame id="ripple" type="spatial" mode="augment">
+    <uniforms>
+      <uniform name="amplitude" type="float" mutable="true" default="0.3" />
+    </uniforms>
+    <fragment><![CDATA[
+vec2 offset = vec2(sin(CANVAS_UV.y * 4.0 + TIME) * amplitude, 0.0);
+COLOR = texture(CANVAS_TEXTURE, CANVAS_UV + offset);
+    ]]></fragment>
+  </shader_frame>
+  <shader_frame id="bloom" type="postprocess">
+    <uniforms>
+      <uniform name="threshold" type="float" mutable="true" default="0.8" />
+    </uniforms>
+    <fragment><![CDATA[
+vec4 base = texture(SCREEN_TEXTURE, SCREEN_UV);
+float lum = dot(base.rgb, vec3(0.2126, 0.7152, 0.0722));
+COLOR = lum > threshold ? base * 1.5 : base;
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

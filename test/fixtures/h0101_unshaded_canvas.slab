@@ -1,5 +1,5 @@
-<shaderlab version="1.0">
-  <shader id="bad_mode" type="canvas_item" render_mode="unshaded">
+<shaderlab version="2.0">
+  <shader_frame id="bad_mode" type="canvas_item" render_mode="unshaded">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>

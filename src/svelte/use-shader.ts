@@ -1,44 +1,29 @@
-import type { SlabModule } from "../runtime/use-shader.js";
-import type { AttachOptions, ShaderInstance } from "../vite/runtime.js";
-import { useShader as useShaderCore } from "../runtime/use-shader.js";
-
-export type { SlabModule } from "../runtime/use-shader.js";
-export type { AttachOptions, ShaderInstance } from "../vite/runtime.js";
-
-export type ShaderlabActionParams<T extends Record<string, ShaderInstance> = Record<string, ShaderInstance>> = {
-  module: SlabModule<T>;
-  attachOptions?: AttachOptions;
-};
+import type { ShaderFrameInstance } from "../vite/runtime.js";
 
 /**
- * Svelte action — attaches all shaders in a `.slab` module to the host `<canvas>` element.
+ * Svelte action — mounts a `ShaderFrameInstance` to the host `<canvas>` element.
  *
  * ```svelte
- * <canvas use:shaderlab={{ module: helloModule }}></canvas>
+ * <canvas use:shaderframe={waterFrame}></canvas>
  * ```
  */
-export function shaderlab<T extends Record<string, ShaderInstance>>(
+export function shaderframe(
   node: HTMLCanvasElement,
-  initial: ShaderlabActionParams<T>,
-): { destroy(): void; update(p: ShaderlabActionParams<T>): void } {
-  let current = initial;
-  let api = useShaderCore(current.module);
-
-  const run = () => {
-    api.detachAll();
-    api = useShaderCore(current.module);
-    api.attach(node, current.attachOptions);
-  };
-
-  run();
+  frame: ShaderFrameInstance,
+): { destroy(): void; update(p: ShaderFrameInstance): void } {
+  let current = frame;
+  current.mount(node);
 
   return {
     destroy() {
-      api.detachAll();
+      current.unmount();
     },
-    update(p: ShaderlabActionParams<T>) {
-      current = p;
-      run();
+    update(p: ShaderFrameInstance) {
+      if (current !== p) {
+        current.unmount();
+        current = p;
+        current.mount(node);
+      }
     },
   };
 }

@@ -6,7 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- **`@yoruxiii/shaderlab/internal`**: `createShaderInstance` moved off the public main export (emit-time only).
+- **Framework adapters (breaking on `@testing`)**: **`ShaderFrame`** + **`frame`** prop, **`useShaderFrame`**, Svelte **`shaderframe`**; removed **`ShaderLab`** / **`useShader`** / **`shaderlab`** action names from adapter entry points.
+- **Composed postprocess**: feeder mutable uniforms in the same `{}` block as the terminal (e.g. `shader_frame.bloom(lib) { speed, threshold }`).
 - **CI**: GitHub Actions release workflow publishes to npm on push to **`master`** (`latest`) or **`Testing`** (`--tag testing`); tag **`v*`** pushes still build the plugin zip and GitHub Release only. Requires repo secret **`NPM_TOKEN`**. See [README](./README.md) and [USAGE](./docs/USAGE.md) maintainers sections.
+
+## [0.4.0-testing.0] - 2026-05-18
+
+> Install from the **`testing`** dist-tag: `npm install @yoruxiii/shaderlab@testing`
+> Testing builds are experimental — things appear and are removed. Do not use in production.
+
+### Added
+
+- **`<shader_frame>` schema (breaking)**: Replaces `<shader>`. Root must be `version="2.0"`.
+  Uniforms support `mutable` / `deferred`; spatial frames require `mode="standalone"` or
+  `mode="augment"`.
+- **`shader_frame` consumer API**: `shader_frame.water(liquids.slab) { … }` — Vite transform
+  lowers call sites; compiled slab libraries expose `__invokeSlabFrame`. Framework adapters
+  receive a `ShaderFrameInstance` and call `mount` / `unmount` only.
+- **`ShaderFrameInstance`**: `mount(target)`, `unmount()`, `set(param, value)`; augment chains
+  wired from the options block in declared load order.
+- **`E04xx` / `W04xx` diagnostics**: `E0401` legacy `<shader>`; `E0402` wrong root version;
+  `E0403`–`E0409` frame/uniform/pipeline rules; `W0401`–`W0403` deferred and spatial warnings.
+- **Type emitter**: Options types include only `mutable` / `deferred` uniforms.
+
+### Removed
+
+- **`<shader>` / `version="1.0"`** slabs (hard error).
+- **`useShader` / `attach` / `feedFrom` / slab-module compositor** from the public consumer path.
+
+### Changed
+
+- **`NEW_API.md`**, **`docs/API.md`**, **`docs/USAGE.md`**, **`docs/LANGUAGE.md`**, **`README.md`**: **Schema 2.0 (`shader_frame`)** docs aligned with `0.4.0-testing.0` (no `E05xx` / `<contract>` claims on testing).
 
 ## [0.3.1] - 2026-05-18
 

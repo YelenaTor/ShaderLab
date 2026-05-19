@@ -1,5 +1,5 @@
-<shaderlab version="1.0">
-  <shader id="x" type="spatial">
+<shaderlab version="2.0">
+  <shader_frame id="x" type="spatial" mode="augment">
     <fragment><![CDATA[COLOR = vec4(PARALLAX_UV, 0.0, 1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>

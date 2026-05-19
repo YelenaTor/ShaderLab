@@ -4,12 +4,12 @@ import type { WriterReport, WriterRunOptions } from "./types.js";
 import { appendFilePreview, emptyReport } from "./types.js";
 
 /** Minimal example shader (canvas_item) for `src/shaders/hello.slab`. */
-export const HELLO_SLAB = `<shaderlab version="1.0">
-  <shader id="hello" type="canvas_item">
+export const HELLO_SLAB = `<shaderlab version="2.0">
+  <shader_frame id="hello" type="canvas_item">
     <fragment><![CDATA[
 COLOR = vec4(UV, sin(TIME) * 0.5 + 0.5, 1.0);
     ]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>
 `;
 

@@ -1,4 +1,6 @@
-import { chroma, bg } from "./hello.slab";
+import { shader_frame } from "@yoruxiii/shaderlab";
+import hello from "./hello.slab";
 
 const canvas = document.getElementById("app") as HTMLCanvasElement;
-chroma.attach(canvas, { feedFrom: bg });
+const chroma = shader_frame.chroma(hello);
+chroma.mount(canvas);

@@ -27,38 +27,56 @@ export type UniformType =
 /** Blend mode derived from `render_mode` blend tokens (mutually exclusive in valid slabs). */
 export type BlendMode = "add" | "multiply" | "premult_alpha";
 
-/** Raw `hint` attribute value from `<uniform>` (e.g. `range(0.0, 5.0)`). */
-export interface UniformAst {
+export interface UniformNode {
   name: string;
   type: UniformType;
   hint: string | null;
   default: string | null;
+  /** `true` = overridable at use site; `false` = sealed. */
+  mutable: boolean;
+  /** `true` = no default available, must be provided at use site. Implies `mutable: true`. */
+  deferred: boolean;
   /** Best-effort line of `<uniform>` start for diagnostics. */
   line?: number;
 }
 
-export interface ShaderAst {
+export interface ShaderFrameNode {
   id: string;
   /** Raw `type` attribute (may be invalid until validated). */
   typeRaw: string;
   type: ShaderType;
+  /** Spatial mode: `"standalone"` | `"augment"` | `null` (non-spatial types). */
+  mode: "standalone" | "augment" | null;
   /** Raw tokens from `render_mode` before semantic validation. */
   renderModeTokens: string[];
   /** Validated render modes (filled by validator). */
   renderModes: RenderMode[];
-  uniforms: UniformAst[];
+  uniforms: UniformNode[];
   /** CDATA body of `<vertex>`, or `null` if omitted. */
   vertexBody: string | null;
   /** CDATA body of `<fragment>` (required in valid documents). */
   fragmentBody: string;
-  /** Best-effort line of `<shader>` start for diagnostics. */
+  /** Best-effort line of `<shader_frame>` start for diagnostics. */
   line?: number;
 }
 
-export interface ShaderlabAst {
+export interface SlabModule {
   /** Value of root `<shaderlab version="...">`. */
   version: string;
-  shaders: ShaderAst[];
+  frames: ShaderFrameNode[];
+}
+
+export interface OverrideNode {
+  name: string;
+  value: unknown;
+}
+
+export interface AugmentNode {
+  kind: 'augment';
+  frameId: string;
+  sourceFile: string;
+  overrides: OverrideNode[];
+  loadIndex: number;
 }
 
 /** Uniform binding plan for runtime / codegen. */
@@ -71,6 +89,10 @@ export interface UniformBindingMeta {
   range: readonly [number, number] | null;
   textureUnit: number | null;
   mousePosition: boolean;
+  /** Whether this uniform is overridable at the use site. */
+  mutable: boolean;
+  /** Whether this uniform requires consumer assignment at the use site. */
+  deferred: boolean;
 }
 
 /** Serializable metadata consumed by `createShaderInstance`. */

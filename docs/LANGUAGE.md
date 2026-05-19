@@ -1,12 +1,16 @@
 # Slab language & compiler reference
 
-Normative reference for **`.slab` documents** and **what the ShaderLab compiler recognizes today**. Implementation lives under `src/compiler/`; tests under `test/compiler/` and `test/fixtures/`.
+Normative reference for **`.slab` documents** and the ShaderLab compiler. Implementation: `src/compiler/`; tests: `test/compiler/`, `test/fixtures/`.
 
-For integration steps (Vite, CLI, versioning), see **[USAGE.md](./USAGE.md)**.
+> **Schema 2.0 (`shader_frame`)** — `@yoruxiii/shaderlab@testing`: root **`version="2.0"`**, **`<shader_frame>`** units, page calls via **`shader_frame.*`**. Consumer summary: [NEW_API.md](../NEW_API.md). Full reference: [API.md](./API.md).
+>
+> **This document’s sections below describe Schema 1.0 (`<shader>`, `version="1.0"`)** as shipped on npm **`latest`** (`0.3.x`). On the testing line, Schema 1.0 slabs are **rejected** (`E0402`).
+
+For integration (Vite, CLI, which schema you are on), see **[USAGE.md](./USAGE.md)**.
 
 ---
 
-## Document shape
+## Document shape (Schema 1.0)
 
 ### Root
 
@@ -22,10 +26,7 @@ For integration steps (Vite, CLI, versioning), see **[USAGE.md](./USAGE.md)**.
 
 ### Shader element
 
-> **⚠️ Deprecated as of `0.3.1`.** The `<shader>` element is deprecated. The compiler
-> emits **`W0401`** for every `<shader>` tag encountered. The replacement is
-> `<shader_frame>`, landing on the testing channel in `0.4.0-testing.0` and stabilising
-> at `0.4.0`. See **[API.md](./API.md)** for the new schema and a migration guide.
+> **Deprecated on `0.3.x` stable:** `<shader>` emits a deprecation diagnostic (see **0.3.1** changelog). **Schema 2.0** hard-errors `<shader>` as **`E0401`**. Migration: **[API.md](./API.md)**.
 
 Each `<shader>` declares one compiled programme pair plus metadata.
 
@@ -176,6 +177,8 @@ Registered codes (`ERROR_CODES` in source):
 | **E0302** | Error | Uniform missing `name` |
 | **E0303** | Error | Unknown uniform `type` |
 | **E0304** | Error | Invalid uniform `name` (identifier shape) |
+| **E0401**–**E0409** | Error | **Schema 2.0 only** — see [API.md](./API.md) |
+| **E0501**–**E0503** | Error | **Planned 0.5.x** (not in `0.4.0-testing.0`) |
 | **H0101** | Hazard | Lighting-style `render_mode` tokens ineffective on supported shader kinds |
 | **H0201** | Hazard | Contradictory blend modes combined |
 | **H0312** | Hazard | Builtin referenced outside allowed list for shader type |
@@ -184,6 +187,8 @@ Registered codes (`ERROR_CODES` in source):
 | **W0201** | Warn | Unknown `hint` |
 | **W0202** | Warn | Default numeric literal outside `range()` |
 | **W0301** | Warn | Present but empty `<vertex>` |
+| **W0401**–**W0403** | Warn | **Schema 2.0** — see [API.md](./API.md) |
+| **W0501** | Warn | **Planned 0.5.x** |
 
 Compiler helpers **must** emit via `diagnostic(...)` so severities cannot drift from this registry.
 

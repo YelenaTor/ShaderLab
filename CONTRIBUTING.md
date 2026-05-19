@@ -12,7 +12,8 @@ ShaderLab is **declarative slab intent → deterministic macro expansion** into 
 |------|------|
 | `src/compiler/` | Parse, validate, codegen, diagnostics, `*.slab.d.ts` emission — **must not** import Vite, adapters, or CLI code |
 | `src/vite/` | Vite plugin and WebGL runtime (`ShaderLabRuntime`, `createShaderInstance`) |
-| `src/runtime/` | `useShader` orchestration (browser-safe relative to compiler) |
+| `src/internal.ts` | `@yoruxiii/shaderlab/internal` — emit-time factory only; not documented for app authors |
+| `src/shader-frame.ts`, `src/pipeline-compose.ts` | `shader_frame` consumer API and composed pipeline wiring |
 | `src/cli/` | `shaderlab` bin (`init`, detection, config writers) |
 | `src/adapters/` | Thin Nuxt / SvelteKit / Remix entrypoints |
 | `src/react`, `src/vue`, `src/svelte` | Framework bindings |

@@ -1,8 +1,8 @@
 import { scanBuiltinStages } from "../builtins.js";
-import type { CompiledShader, ShaderAst, ShaderRuntimeMetadata } from "../types.js";
+import type { ShaderFrameNode, CompiledShader, ShaderRuntimeMetadata } from "../types.js";
 import { buildUniformBlock, pickBlend } from "./shared.js";
 
-export function buildSpatialShader(sh: ShaderAst): CompiledShader {
+export function buildSpatialShader(sh: ShaderFrameNode): CompiledShader {
   const vertexSrc = sh.vertexBody ?? "";
   const fragmentSrc = sh.fragmentBody;
   const stages = scanBuiltinStages(vertexSrc, fragmentSrc);

@@ -5,48 +5,14 @@ import { dirnameOf, fileBasename, joinPath, relativeFromRoot, toPosix } from "./
 import { compileSlab } from "../compiler/compile.js";
 import { formatDiagnostic } from "../compiler/errors.js";
 import { emitSlabDts } from "../compiler/types-emit.js";
-import type { CompilerOutput } from "../compiler/types.js";
+import { emitSlabModule } from "./emit-slab-module.js";
+import { transformShaderFrameCalls } from "./shader-frame-transform.js";
 
 export type ShaderlabDtsOption = boolean | { outDir?: string };
 
 export interface ShaderlabPluginOptions {
   /** When `true` (default), emit a sibling `*.slab.d.ts` after each successful compile. Set `false` to skip. */
   dts?: ShaderlabDtsOption;
-}
-
-function emitSlabModule(output: CompilerOutput): string {
-  const lines: string[] = [];
-  lines.push(`import { createShaderInstance } from "shaderlab";`);
-  const entries: string[] = [];
-  for (const sh of output.shaders) {
-    const payload = {
-      shaderId: sh.id,
-      vertexSource: sh.vertexGlsl,
-      fragmentSource: sh.fragmentGlsl,
-      metadata: sh.metadata,
-    };
-    entries.push(`  ${JSON.stringify(sh.exportName)}: createShaderInstance(${JSON.stringify(payload)})`);
-  }
-  lines.push(`export const __shaders = {\n${entries.join(",\n")}\n};\n`);
-  for (const sh of output.shaders) {
-    lines.push(`export const ${sh.exportName} = __shaders[${JSON.stringify(sh.exportName)}];\n`);
-  }
-  lines.push(`
-if (import.meta.hot) {
-  import.meta.hot.accept((mod) => {
-    const next = mod?.__shaders;
-    if (!next) return;
-    for (const k of Object.keys(__shaders)) {
-      const cur = __shaders[k];
-      const n = next[k];
-      if (cur && n && typeof cur._slabHotSwap === "function") {
-        cur._slabHotSwap(n);
-      }
-    }
-  });
-}
-`);
-  return lines.join("\n");
 }
 
 function resolveSidecarPath(slabPath: string, projectRoot: string, dts: ShaderlabDtsOption | undefined): string | null {
@@ -136,6 +102,13 @@ export default function shaderlab(options?: ShaderlabPluginOptions): Plugin {
       }
     },
     transform(code, id) {
+      if (/\.(tsx?|jsx?|vue|svelte)$/.test(id) && !id.includes("node_modules")) {
+        const out = transformShaderFrameCalls(code, id);
+        if (out.code !== code) {
+          return { code: out.code, map: null };
+        }
+        return null;
+      }
       if (!id.endsWith(".slab")) {
         return null;
       }

@@ -1,5 +1,5 @@
 import { parseHint } from "../hints.js";
-import type { BlendMode, RenderMode, UniformAst, UniformBindingMeta } from "../types.js";
+import type { BlendMode, RenderMode, UniformNode, UniformBindingMeta } from "../types.js";
 
 /**
  * GLSL uniform symbol for a slab uniform name.
@@ -24,7 +24,7 @@ export interface UniformBuildResult {
 }
 
 export function buildUniformBlock(
-  uniforms: readonly UniformAst[],
+  uniforms: readonly UniformNode[],
   startTexUnit = 0,
 ): UniformBuildResult {
   let texUnit = startTexUnit;
@@ -52,6 +52,8 @@ export function buildUniformBlock(
       range,
       textureUnit: tu,
       mousePosition,
+      mutable: u.mutable,
+      deferred: u.deferred,
     });
   }
 

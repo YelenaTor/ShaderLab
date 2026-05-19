@@ -14,6 +14,15 @@ export type ErrorCodeId =
   | "E0302"
   | "E0303"
   | "E0304"
+  | "E0401"
+  | "E0402"
+  | "E0403"
+  | "E0404"
+  | "E0405"
+  | "E0406"
+  | "E0407"
+  | "E0408"
+  | "E0409"
   | "H0101"
   | "H0201"
   | "H0312"
@@ -22,7 +31,9 @@ export type ErrorCodeId =
   | "W0201"
   | "W0202"
   | "W0301"
-  | "W0401";
+  | "W0401"
+  | "W0402"
+  | "W0403";
 
 export interface ShaderlabDiagnostic {
   code: ErrorCodeId;
@@ -44,7 +55,7 @@ export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: str
   },
   E0201: {
     severity: "Error",
-    summary: "Missing `id` attribute on `<shader>`",
+    summary: "Missing `id` attribute on `<shader_frame>`",
   },
   E0202: {
     severity: "Error",
@@ -69,6 +80,42 @@ export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: str
   E0304: {
     severity: "Error",
     summary: "Invalid uniform `name` (use letters, digits, underscore only)",
+  },
+  E0401: {
+    severity: "Error",
+    summary: "`<shader>` element found. Not valid in schema v2.0.",
+  },
+  E0402: {
+    severity: "Error",
+    summary: "`version=\"1.0\"` root element. Must be `version=\"2.0\"`.",
+  },
+  E0403: {
+    severity: "Error",
+    summary: "`deferred=\"true\"` combined with `mutable=\"false\"`.",
+  },
+  E0404: {
+    severity: "Error",
+    summary: "Augment attached to a `postprocess` frame.",
+  },
+  E0405: {
+    severity: "Error",
+    summary: "`<vertex>` body declared on a `postprocess` frame.",
+  },
+  E0406: {
+    severity: "Error",
+    summary: "`CANVAS_TEXTURE` or `CANVAS_UV` referenced in a standalone spatial.",
+  },
+  E0407: {
+    severity: "Error",
+    summary: "`<vertex>` body declared on a spatial augment frame.",
+  },
+  E0408: {
+    severity: "Error",
+    summary: "Augment reference points to a frame that is not a spatial augment.",
+  },
+  E0409: {
+    severity: "Error",
+    summary: "Pipeline stage declared after `postprocess`.",
   },
   H0101: {
     severity: "Hazard",
@@ -105,7 +152,15 @@ export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: str
   },
   W0401: {
     severity: "Warn",
-    summary: "`<shader>` is deprecated — use `<shader_frame>` instead (see docs/API.md)",
+    summary: "Deferred uniform declared but not supplied at any known use site.",
+  },
+  W0402: {
+    severity: "Warn",
+    summary: "`mode` omitted on spatial frame (defaults to `standalone`), OR unused `SCREEN_TEXTURE` in postprocess.",
+  },
+  W0403: {
+    severity: "Warn",
+    summary: "Spatial augment does not reference `CANVAS_TEXTURE` or `CANVAS_UV`.",
   },
 };
 

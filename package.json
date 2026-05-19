@@ -1,6 +1,6 @@
 {
   "name": "@yoruxiii/shaderlab",
-  "version": "0.3.1",
+  "version": "0.4.0-testing.0",
   "description": "Vite-first shader DSL plugin for the web (.slab → GLSL)",
   "type": "module",
   "license": "MIT OR Apache-2.0",
@@ -22,6 +22,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js"
     },
     "./vite": {
       "types": "./dist/vite/entry.d.ts",
@@ -56,7 +60,7 @@
     "./svelte": {
       "types": "./dist/svelte/use-shader.d.ts",
       "import": "./dist/svelte/use-shader.js",
-      "svelte": "./dist/svelte/ShaderLab.svelte"
+      "svelte": "./dist/svelte/ShaderFrame.svelte"
     }
   },
   "bin": {

@@ -171,11 +171,11 @@ describe("§7 uniform hint runtime behavior", () => {
     const c = document.createElement("canvas");
     c.width = 2;
     c.height = 2;
-    rt.uniforms.albedoMap = c;
-    rt.attach(canvas);
+    rt.set('albedoMap', c);
+    rt.mount(canvas);
     await vi.waitFor(() => expect(gl.calls.some((c) => c.method === "texImage2D")).toBe(true));
     expect(gl.calls.some((c) => c.method === "uniform1i")).toBe(true);
-    rt.detach();
+    rt.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -210,10 +210,10 @@ describe("§7 uniform hint runtime behavior", () => {
     const c2 = document.createElement("canvas");
     c2.width = 1;
     c2.height = 1;
-    rt.uniforms.albedo = c2;
-    rt.attach(canvas);
+    rt.set('albedo', c2);
+    rt.mount(canvas);
     await vi.waitFor(() => expect(gl.calls.some((c) => c.method === "bindTexture")).toBe(true));
-    rt.detach();
+    rt.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -248,12 +248,12 @@ describe("§7 uniform hint runtime behavior", () => {
     const c = document.createElement("canvas");
     c.width = 4;
     c.height = 4;
-    rt.uniforms.nm = c;
-    rt.attach(canvas);
+    rt.set('nm', c);
+    rt.mount(canvas);
     await vi.waitFor(() =>
       expect(gl.calls.filter((x) => x.method === "activeTexture").length).toBeGreaterThan(0),
     );
-    rt.detach();
+    rt.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -285,14 +285,14 @@ describe("§7 uniform hint runtime behavior", () => {
         cullDisabled: false,
       }),
     );
-    rt.attach(canvas);
+    rt.mount(canvas);
     // sRGB 1.0 maps to linear 1.0 — use a mid-gray to observe lift from gamma curve.
-    rt.uniforms.tint = [0.5, 0.5, 0.5];
+    rt.set('tint', [0.5, 0.5, 0.5]);
     const store = rt.uniforms as Record<string, unknown>;
     const v = store.__tint as number[];
     expect(v[0]).toBeLessThan(0.5);
     expect(v[0]).toBeGreaterThan(0.2);
-    rt.detach();
+    rt.unmount();
     vi.unstubAllGlobals();
   });
 
@@ -325,13 +325,13 @@ describe("§7 uniform hint runtime behavior", () => {
         cullDisabled: false,
       }),
     );
-    rt.attach(canvas);
-    rt.uniforms.speed = 99;
+    rt.mount(canvas);
+    rt.set('speed', 99);
     expect((rt.uniforms as Record<string, unknown>).__speed).toBe(1);
     expect(warn).toHaveBeenCalled();
     expect(String(warn.mock.calls[0]?.[0] ?? "")).toContain("H0401");
     warn.mockRestore();
-    rt.detach();
+    rt.unmount();
     vi.unstubAllGlobals();
   });
 });

@@ -4,57 +4,76 @@
 [![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](./LICENSE-MIT)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](./package.json)
 
-> [!WARNING]
-> **API change incoming.** The `<shader>` element is **deprecated as of `0.3.1`** and will
-> be removed in `0.4.0`. The replacement is `<shader_frame>`, arriving on the testing
-> channel in `0.4.0-testing.0` and stabilising at `0.4.0`. Every `<shader>` tag now emits
-> a **`W0401`** warning at compile time.
-> 
-> Read **[docs/API.md](./docs/API.md)** for the new schema and migration guide, or
-> **[CHANGELOG.md §0.3.1](./CHANGELOG.md)** for the short version.
+> [!IMPORTANT]
+> **Attention!** **`0.4.0-testing.0`** (npm dist-tag **`testing`**) uses **Schema 2.0 (`shader_frame`)** — not the stable **Schema 1.0** (`<shader>`, `useShader`) on **`latest`**.
+>
+> - **Start here:** [NEW_API.md](./NEW_API.md) (short overview)
+> - **Full reference:** [docs/API.md](./docs/API.md)
+> - **Adoption / version guide:** [docs/USAGE.md](./docs/USAGE.md) → *0.4.x — Schema 2.0*
+>
+> Install: `npm install @yoruxiii/shaderlab@testing`
 
-Vite-first toolchain for **`.slab`** shader modules: declarative XML-ish metadata plus GLSL snippets compile to WebGL2 programs and typed ES modules. Use **`useShader`** or **`attach`** on a canvas — not a full game engine or scene graph.
+Vite-first toolchain for **`.slab`** shader modules: declarative metadata plus GLSL snippets compile to WebGL2 programs and typed ES modules — not a full game engine or scene graph.
 
 **Requirements:** Node **18+**, Vite **5 or 6**, WebGL2 in the browser.
 
-Published on npm as **`@yoruxiii/shaderlab`** on the **`latest`** dist-tag (see badge above). Prerelease builds use the **`testing`** dist-tag: `npm install @yoruxiii/shaderlab@testing`.
-
-**Docs:** [CHANGELOG.md](./CHANGELOG.md) · [Usage guide](./docs/USAGE.md) · [Slab language reference](./docs/LANGUAGE.md) · [API reference](./docs/API.md)
-
-## Install
-
-```bash
-npm install @yoruxiii/shaderlab
-```
-
-Pin a version for reproducible builds:
+| npm dist-tag | Package line | Slab / consumer API |
+|--------------|--------------|---------------------|
+| **`latest`** | `0.3.x` stable | Schema **1.0** — `<shader>`, `useShader`, `attach` |
+| **`testing`** | `0.4.0-testing.0+` | **Schema 2.0 (`shader_frame`)** — see [NEW_API.md](./NEW_API.md) |
 
 ```bash
-npm install @yoruxiii/shaderlab@0.3.1
-# or
-npm install @yoruxiii/shaderlab@^0.3
+npm install @yoruxiii/shaderlab          # stable 0.3.x
+npm install @yoruxiii/shaderlab@testing  # Schema 2.0 (shader_frame)
 ```
 
-**From GitHub** (same sources as a release tag):
+**Docs:** [NEW_API.md](./NEW_API.md) · [CHANGELOG.md](./CHANGELOG.md) · [Usage](./docs/USAGE.md) · [Language](./docs/LANGUAGE.md) · [API](./docs/API.md)
 
-```bash
-npm install github:YelenaTor/ShaderLab#v0.3.1
-```
+---
 
-## Quick start
+## Quick start — Schema 2.0 (`shader_frame`, `@testing`)
 
-**1. Vite** — add the plugin in `vite.config.ts`:
+**1. Vite** — `vite.config.ts`:
 
 ```ts
 import { defineConfig } from "vite";
 import shaderlab from "@yoruxiii/shaderlab/vite";
 
-export default defineConfig({
-  plugins: [shaderlab()],
-});
+export default defineConfig({ plugins: [shaderlab()] });
 ```
 
-**2. Slab + canvas** — import the compiled module (not a path string):
+**2. Slab** — one frame per callable name (`id` → `shader_frame.<id>`):
+
+```xml
+<shaderlab version="2.0">
+  <shader_frame id="waves" type="canvas_item">
+    <uniforms>
+      <uniform name="speed" type="float" default="1.0" mutable="true" />
+    </uniforms>
+    <fragment><![CDATA[
+COLOR = vec4(UV, sin(TIME * speed) * 0.5 + 0.5, 0.7, 1.0);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>
+```
+
+**3. Page** — import the compiled **library** module, call, mount:
+
+```ts
+import { shader_frame } from "@yoruxiii/shaderlab";
+import wavesLib from "./waves.slab";
+
+const canvas = document.querySelector("canvas")!;
+const fx = shader_frame.waves(wavesLib) { speed: 2.0 };
+fx.mount(canvas);
+// fx.set("speed", 1.0); fx.unmount();
+```
+
+Each `.slab` file is a **shader library** (many frames allowed). Details: [NEW_API.md](./NEW_API.md), [docs/API.md](./docs/API.md).
+
+---
+
+## Quick start — Schema 1.0 (`<shader>`, npm `latest`)
 
 ```ts
 import hello from "./hello.slab";
@@ -62,82 +81,66 @@ import { useShader } from "@yoruxiii/shaderlab";
 
 const canvas = document.querySelector("canvas")!;
 const { attach, detachAll } = useShader(hello);
-
 attach(canvas);
 ```
 
-Each `.slab` file becomes an ES module with **`__shaders`** (all instances) and named exports per `<shader id="…">`.
+Emitted modules expose **`__shaders`** and named exports per `<shader id="…">`. See [docs/USAGE.md](./docs/USAGE.md).
+
+---
 
 ## Shader types
 
 | `type` | Role |
 |--------|------|
-| **`canvas_item`** | Draw to the canvas; builtins like `TEXTURE`, `UV`, `TIME`, and optional **`PARALLAX_UV`** with `hint="parallax_layer"`. |
-| **`postprocess`** | Full-screen pass sampling upstream via `SCREEN_TEXTURE` / `SCREEN_UV` (`feedFrom`). |
-| **`spatial`** | Standalone fullscreen pass, or augment mode with `CANVAS_TEXTURE` / `CANVAS_UV` (samples the immediate upstream pass). |
+| **`canvas_item`** | Draw to the canvas; builtins like `TEXTURE`, `UV`, `TIME`, optional **`PARALLAX_UV`**. |
+| **`postprocess`** | Full-screen pass via `SCREEN_TEXTURE` / `SCREEN_UV`. |
+| **`spatial`** | Standalone fullscreen, or **augment** mode with `CANVAS_TEXTURE` / `CANVAS_UV`. |
 
-`useShader` wires multi-pass slabs in pipeline order: **`canvas_item` → spatial (augment)×N → `postprocess`** (XML order in the file does not matter). Details: [LANGUAGE.md](./docs/LANGUAGE.md), [USAGE.md](./docs/USAGE.md).
+Multi-pass wiring: **`useShader`** on **1.0** slabs; **`shader_frame` + augments** (and `mount` options) on **2.0** — [LANGUAGE.md](./docs/LANGUAGE.md).
 
 ## Entry points
 
 | Import | Use |
 |--------|-----|
-| `@yoruxiii/shaderlab` | Runtime: `useShader`, `createShaderInstance` |
-| `@yoruxiii/shaderlab/vite` | Vite plugin (`vite.config` only) |
-| `@yoruxiii/shaderlab/react`, `/vue`, `/svelte` | Framework hooks / components |
-| `@yoruxiii/shaderlab/nuxt` | Nuxt module |
-| `@yoruxiii/shaderlab/sveltekit`, `/remix` | Vite plugin re-exports for those stacks |
+| `@yoruxiii/shaderlab` | **2.0:** `shader_frame`, `ShaderFrameInstance` |
+| `@yoruxiii/shaderlab/vite` | Vite plugin |
+| `@yoruxiii/shaderlab/react`, `/vue`, `/svelte` | **`ShaderFrame`** + **`frame`** prop, **`useShaderFrame`**, Svelte **`shaderframe`** |
 | `@yoruxiii/shaderlab/client` | Ambient types for `*.slab` imports |
-
-Optional plugin option: `shaderlab({ dts: true })` emits sibling `*.slab.d.ts` (default on).
 
 ## Frameworks
 
-- **React:** `useShader(mod, attachOptions?)` or `<ShaderLab module={mod} />` from `@yoruxiii/shaderlab/react`
-- **Vue:** `useShader(mod, attachOptions?)` or `ShaderLab` from `@yoruxiii/shaderlab/vue`
-- **Svelte:** `<canvas use:shaderlab={{ module: mod }} />` from `@yoruxiii/shaderlab/svelte`
-- **Nuxt:** `modules: ["@yoruxiii/shaderlab/nuxt"]` in `nuxt.config.ts`
-
-All bindings expect the **imported slab module**, not a filesystem path.
-
-**Manual chains** (when you need explicit control):
-
-```ts
-import { chroma, bg } from "./hello.slab";
-
-chroma.attach(canvas, { feedFrom: bg });
-```
+On **Schema 2.0**, use **`ShaderFrame`** with a **`frame`** prop (or **`useShaderFrame`** / Svelte **`shaderframe`**) for a `ShaderFrameInstance` from `shader_frame.*(...)`.
 
 ## CLI
 
-Scaffold Vite config and a starter slab:
-
 ```bash
 npx shaderlab init
-npx shaderlab init --dry-run   # preview patches
+npx shaderlab init --dry-run
 ```
+
+`init` scaffolds **Schema 2.0** slabs when targeting the testing line.
 
 ## Typing
 
-```ts
-/// <reference types="@yoruxiii/shaderlab/client" />
+```json
+{ "compilerOptions": { "types": ["@yoruxiii/shaderlab/client"] } }
 ```
 
-Or `"types": ["@yoruxiii/shaderlab/client"]` in `tsconfig.json`. Compiled slabs can also emit `*.slab.d.ts` beside the source.
+The plugin can emit sibling **`*.slab.d.ts`** (`shaderlab({ dts: true })`, default on).
 
 ## Documentation
 
 | Doc | Contents |
 |-----|----------|
-| [API.md](./docs/API.md) | `shader_frame` API reference and migration guide |
-| [USAGE.md](./docs/USAGE.md) | Adoption, `attach` options, version guide |
-| [LANGUAGE.md](./docs/LANGUAGE.md) | Grammar, builtins, diagnostics |
+| [NEW_API.md](./NEW_API.md) | Short **Schema 2.0** consumer guide |
+| [API.md](./docs/API.md) | Full **2.0** frame reference + migration |
+| [USAGE.md](./docs/USAGE.md) | Version guide (1.0 vs 2.0) |
+| [LANGUAGE.md](./docs/LANGUAGE.md) | **1.0** grammar (+ 2.0 pointer) |
 | [CHANGELOG.md](./CHANGELOG.md) | Release history |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | Development and PR expectations |
 
 ## Examples
 
-- [examples/vanilla-vite](./examples/vanilla-vite) — dev server and manual `feedFrom` wiring
+- [examples/vanilla-vite](./examples/vanilla-vite) — **Schema 2.0** demo (`shader_frame`, two-frame post chain)
 
 ## License
 

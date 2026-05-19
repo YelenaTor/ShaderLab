@@ -1,5 +1,5 @@
-<shaderlab version="1.0">
-  <shader id="x" type="canvas_item">
+<shaderlab version="2.0">
+  <shader_frame id="x" type="canvas_item">
     <fragment><![CDATA[COLOR = texture(CANVAS_TEXTURE, CANVAS_UV);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>

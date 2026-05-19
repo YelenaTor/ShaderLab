@@ -1,11 +1,11 @@
-import type { CompilerOutput, ShaderlabAst } from "./types.js";
+import type { CompilerOutput, SlabModule } from "./types.js";
 import { buildCanvasItemShader } from "./templates/canvas_item.js";
 import { buildPostprocessShader } from "./templates/postprocess.js";
 import { buildSpatialShader } from "./templates/spatial.js";
 
-export function generate(ast: ShaderlabAst): CompilerOutput {
+export function generate(ast: SlabModule): CompilerOutput {
   const shaders = [];
-  for (const sh of ast.shaders) {
+  for (const sh of ast.frames) {
     switch (sh.type) {
       case "canvas_item":
         shaders.push(buildCanvasItemShader(sh));

@@ -99,7 +99,7 @@ describe("compileSlab", () => {
 
   const errorCases: { file: string; code: string }[] = [
     { file: "e0101_missing_version.slab", code: "E0101" },
-    { file: "e0102_bad_version.slab", code: "E0102" },
+    { file: "e0102_bad_version.slab", code: "E0402" },
     { file: "e0201_missing_id.slab", code: "E0201" },
     { file: "e0202_dup_id.slab", code: "E0202" },
     { file: "e0203_bad_type.slab", code: "E0203" },
@@ -154,15 +154,15 @@ describe("compileSlab", () => {
   });
 
   it("treats render_mode tokens as an unordered set (order does not change metadata)", () => {
-    const a = `<shaderlab version="1.0">
-  <shader id="x" type="canvas_item" render_mode="cull_disabled,blend_add">
+    const a = `<shaderlab version="2.0">
+  <shader_frame id="x" type="canvas_item" render_mode="cull_disabled,blend_add">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>`;
-    const b = `<shaderlab version="1.0">
-  <shader id="x" type="canvas_item" render_mode="blend_add,cull_disabled">
+    const b = `<shaderlab version="2.0">
+  <shader_frame id="x" type="canvas_item" render_mode="blend_add,cull_disabled">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>`;
     const ra = compileSlab(a, "order-a.slab");
     const rb = compileSlab(b, "order-b.slab");
@@ -172,16 +172,16 @@ describe("compileSlab", () => {
   });
 
   it("maps all blend and cull render modes to runtime metadata", () => {
-    const src = `<shaderlab version="1.0">
-  <shader id="add" type="canvas_item" render_mode="blend_add,cull_disabled">
+    const src = `<shaderlab version="2.0">
+  <shader_frame id="add" type="canvas_item" render_mode="blend_add,cull_disabled">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
-  <shader id="mul" type="canvas_item" render_mode="blend_multiply">
+  </shader_frame>
+  <shader_frame id="mul" type="canvas_item" render_mode="blend_multiply">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
-  <shader id="premult" type="postprocess" render_mode="blend_premult_alpha">
+  </shader_frame>
+  <shader_frame id="premult" type="postprocess" render_mode="blend_premult_alpha">
     <fragment><![CDATA[COLOR = texture(SCREEN_TEXTURE, SCREEN_UV);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>`;
     const r = compileSlab(src, "render_modes.slab");
     expect(r.output).not.toBeNull();
@@ -193,10 +193,10 @@ describe("compileSlab", () => {
   });
 
   it("rejects unknown shader type values with E0203", () => {
-    const src = `<shaderlab version="1.0">
-  <shader id="x" type="not_a_real_shader_kind">
+    const src = `<shaderlab version="2.0">
+  <shader_frame id="x" type="not_a_real_shader_kind">
     <fragment><![CDATA[COLOR = vec4(1.0);]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>`;
     const r = compileSlab(src, "unknown_type_rejected.slab");
     expect(r.output).toBeNull();
@@ -204,24 +204,24 @@ describe("compileSlab", () => {
   });
 
   it("covers builtin matrix parity across shader types", () => {
-    const src = `<shaderlab version="1.0">
-  <shader id="canvas_ok" type="canvas_item">
+    const src = `<shaderlab version="2.0">
+  <shader_frame id="canvas_ok" type="canvas_item">
     <fragment><![CDATA[
 COLOR = texture(TEXTURE, UV) * VERTEX_COLOR + vec4(vec3(TIME), 0.0);
 COLOR.xy += RESOLUTION / max(RESOLUTION, vec2(1.0));
     ]]></fragment>
-  </shader>
-  <shader id="post_ok" type="postprocess">
+  </shader_frame>
+  <shader_frame id="post_ok" type="postprocess">
     <fragment><![CDATA[
 COLOR = texture(SCREEN_TEXTURE, SCREEN_UV) + vec4(TIME / max(RESOLUTION.x, 1.0));
     ]]></fragment>
-  </shader>
-  <shader id="spatial_ok" type="spatial">
+  </shader_frame>
+  <shader_frame id="spatial_ok" type="spatial" mode="standalone">
     <fragment><![CDATA[
 COLOR = vec4(UV, VERTEX_COLOR.a, 1.0) + vec4(vec3(TIME * 0.01), 0.0);
 COLOR.xy += RESOLUTION / max(RESOLUTION, vec2(1.0));
     ]]></fragment>
-  </shader>
+  </shader_frame>
 </shaderlab>`;
     const r = compileSlab(src, "builtin_matrix.slab");
     expect(r.output).not.toBeNull();

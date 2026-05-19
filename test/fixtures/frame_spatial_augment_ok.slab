@@ -1,0 +1,15 @@
+<shaderlab version="2.0">
+  <shader_frame id="ripple" type="spatial" mode="augment">
+    <contract>
+      <consumes>rgba</consumes>
+      <produces>rgba</produces>
+    </contract>
+    <uniforms>
+      <uniform name="amplitude" type="float" hint="range(0.0, 1.0)" mutable="true" default="0.3" />
+    </uniforms>
+    <fragment><![CDATA[
+vec2 offset = vec2(sin(CANVAS_UV.y * 4.0 + TIME) * amplitude, 0.0);
+COLOR = texture(CANVAS_TEXTURE, CANVAS_UV + offset);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

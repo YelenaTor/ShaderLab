@@ -1,8 +1,10 @@
 # ShaderLab — vanilla Vite example
 
+**Schema 2.0 (`shader_frame`)** demo: `hello.slab` defines `bg` + `chroma`; `main.ts` calls `shader_frame.*` and mounts a post chain.
+
 ## Run locally
 
-Requires the parent `shaderlab` package to be built first:
+Build the parent package first:
 
 ```bash
 cd ../..
@@ -13,12 +15,21 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints. You should see an animated background with a light chromatic-style full-screen postprocess pass driven by `hello.slab`.
+Open the URL Vite prints. You should see an animated background with a chromatic-style post pass.
 
-With `npm run dev`, editing `hello.slab` hot-reloads the WebGL programs via Vite HMR; uniform values are preserved when names and types match across reloads. A `hello.slab.d.ts` sidecar is emitted next to the slab for TypeScript (listed in `.gitignore` here).
+With `npm run dev`, editing `hello.slab` hot-reloads WebGL programs. A `hello.slab.d.ts` sidecar is emitted for TypeScript (gitignored in this folder).
 
 ## API shape
 
-This demo imports **named shader exports** (`chroma`, `bg`) and calls `chroma.attach(canvas, { feedFrom: bg })`. Equivalently you can `import hello from "./hello.slab"` and use `useShader(hello)` from `shaderlab` to attach the feeder and postprocess in one call—see the root package [README](../../README.md).
+```ts
+import { shader_frame } from "@yoruxiii/shaderlab";
+import hello from "./hello.slab";
 
-For ambient `*.slab` typing in your own project, add `"types": ["shaderlab/client"]` to `tsconfig.json` or a `/// <reference types="shaderlab/client" />` directive.
+const canvas = document.getElementById("app") as HTMLCanvasElement;
+const chroma = shader_frame.chroma(hello);
+chroma.mount(canvas);
+```
+
+For a single `canvas_item` with no post chain, one call plus `mount` is enough — see [NEW_API.md](../../NEW_API.md).
+
+Typing: `"types": ["@yoruxiii/shaderlab/client"]` in `tsconfig.json`.

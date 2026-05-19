@@ -1,22 +1,22 @@
 import { scanBuiltinStages } from "../builtins.js";
-import type { CompiledShader, ShaderAst, ShaderRuntimeMetadata, UniformAst } from "../types.js";
+import type { ShaderFrameNode, UniformNode, CompiledShader, ShaderRuntimeMetadata } from "../types.js";
 import { glslUniformName, buildUniformBlock, pickBlend } from "./shared.js";
 
 /** Documented in LANGUAGE.md — horizontal parallax scale for PARALLAX_UV. */
 const PARALLAX_TIME_SCALE = 0.05;
 
-function findParallaxLayerUniform(uniforms: readonly UniformAst[]): UniformAst | undefined {
+function findParallaxLayerUniform(uniforms: readonly UniformNode[]): UniformNode | undefined {
   return uniforms.find((u) => u.type === "float" && u.hint?.trim() === "parallax_layer");
 }
 
-export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
-  const vertexSrc = sh.vertexBody ?? "";
-  const fragmentSrc = sh.fragmentBody;
+export function buildCanvasItemShader(ast: ShaderFrameNode): CompiledShader {
+  const vertexSrc = ast.vertexBody ?? "";
+  const fragmentSrc = ast.fragmentBody;
   const stages = scanBuiltinStages(vertexSrc, fragmentSrc);
   const vb = stages.vertex;
   const fb = stages.fragment;
 
-  const parallaxUniform = findParallaxLayerUniform(sh.uniforms);
+  const parallaxUniform = findParallaxLayerUniform(ast.uniforms);
   const wantsParallax = stages.combined.has("PARALLAX_UV") || parallaxUniform != null;
   const parallaxGlsl = parallaxUniform ? glslUniformName(parallaxUniform.name) : null;
 
@@ -59,7 +59,7 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
   vs.push("}");
   const vertexGlsl = vs.join("\n");
 
-  const userUniforms = buildUniformBlock(sh.uniforms, 0);
+  const userUniforms = buildUniformBlock(ast.uniforms, 0);
   const uniformMeta = userUniforms.meta;
   const userUniformDeclFs = userUniforms.decls;
   let texUnit = userUniforms.nextTexUnit;
@@ -106,14 +106,14 @@ export function buildCanvasItemShader(sh: ShaderAst): CompiledShader {
     shaderType: "canvas_item",
     referencedBuiltins: referenced,
     uniforms: uniformMeta,
-    blendMode: pickBlend(sh.renderModes),
-    cullDisabled: sh.renderModes.includes("cull_disabled"),
+    blendMode: pickBlend(ast.renderModes),
+    cullDisabled: ast.renderModes.includes("cull_disabled"),
     textureBuiltinUnit,
   };
 
   return {
-    id: sh.id,
-    exportName: sh.id,
+    id: ast.id,
+    exportName: ast.id,
     vertexGlsl,
     fragmentGlsl,
     metadata,

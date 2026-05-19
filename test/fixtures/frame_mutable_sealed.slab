@@ -1,0 +1,11 @@
+<shaderlab version="2.0">
+  <shader_frame id="panel" type="canvas_item">
+    <uniforms>
+      <uniform name="speed" type="float" mutable="true" default="1.0" />
+      <uniform name="tile_size" type="float" mutable="false" default="4.0" />
+    </uniforms>
+    <fragment><![CDATA[
+COLOR = vec4(UV * tile_size, sin(TIME * speed), 1.0);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>
