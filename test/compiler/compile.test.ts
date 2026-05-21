@@ -56,6 +56,42 @@ describe("compileSlab", () => {
     expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
   });
 
+  it("compiles canvas_25d as a first-class parallax frame", () => {
+    const r = compileSlab(load("canvas_25d_ok.slab"), "canvas_25d_ok.slab");
+    expect(r.output).not.toBeNull();
+    const sh = r.output!.shaders[0]!;
+    expect(sh.metadata.shaderType).toBe("canvas_25d");
+    expect(sh.vertexGlsl).toContain("out vec2 PARALLAX_UV");
+    expect(sh.vertexGlsl).toContain("out vec2 PARALLAX_OFFSET");
+    expect(sh.vertexGlsl).toContain("out float LAYER_DEPTH");
+    expect(sh.vertexGlsl).toContain("out float PARALLAX_STRENGTH");
+    expect(sh.vertexGlsl).toContain("LAYER_DEPTH * TIME * PARALLAX_STRENGTH");
+    expect(sh.fragmentGlsl).toContain("in vec2 PARALLAX_UV");
+    expect(sh.fragmentGlsl).toContain("in vec2 PARALLAX_OFFSET");
+    expect(sh.fragmentGlsl).toContain("in float LAYER_DEPTH");
+    expect(sh.fragmentGlsl).toContain("in float PARALLAX_STRENGTH");
+    expect(sh.metadata.referencedBuiltins).toEqual(
+      expect.arrayContaining([
+        "PARALLAX_UV",
+        "PARALLAX_OFFSET",
+        "LAYER_DEPTH",
+        "PARALLAX_STRENGTH",
+        "TIME",
+      ]),
+    );
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
+  it("compiles canvas_25d -> spatial augment -> postprocess chains", () => {
+    const r = compileSlab(load("canvas_25d_chain_ok.slab"), "canvas_25d_chain_ok.slab");
+    expect(r.output).not.toBeNull();
+    const byId = Object.fromEntries(r.output!.shaders.map((s) => [s.id, s]));
+    expect(byId.clouds!.metadata.shaderType).toBe("canvas_25d");
+    expect(byId.ripple!.metadata.requiresCanvasFeed).toBe(true);
+    expect(byId.grade!.metadata.shaderType).toBe("postprocess");
+    expect(r.diagnostics.filter((d) => d.severity === "Error")).toHaveLength(0);
+  });
+
   it("compiles layered_parallax_spatial_post.slab and multi_spatial_post.slab", () => {
     const layered = compileSlab(
       load("layered_parallax_spatial_post.slab"),
@@ -75,6 +111,12 @@ describe("compileSlab", () => {
 
   it("emits H0312 for PARALLAX_UV in spatial", () => {
     const r = compileSlab(load("h0312_parallax_in_spatial.slab"), "h0312_parallax_in_spatial.slab");
+    expect(r.output).not.toBeNull();
+    expect(r.diagnostics.some((d) => d.code === "H0312")).toBe(true);
+  });
+
+  it("emits H0312 for canvas_25d builtins in spatial", () => {
+    const r = compileSlab(load("h0312_25d_in_spatial.slab"), "h0312_25d_in_spatial.slab");
     expect(r.output).not.toBeNull();
     expect(r.diagnostics.some((d) => d.code === "H0312")).toBe(true);
   });
@@ -123,6 +165,7 @@ describe("compileSlab", () => {
     { file: "w0101_bad_render_mode.slab", code: "W0101" },
     { file: "w0201_bad_hint.slab", code: "W0201" },
     { file: "w0201_parallax_layer_wrong_type.slab", code: "W0201" },
+    { file: "w0201_layer_depth_wrong_type.slab", code: "W0201" },
     { file: "w0202_default_out_range.slab", code: "W0202" },
     { file: "w0301_empty_vertex.slab", code: "W0301" },
   ];

@@ -4,7 +4,7 @@ import { diagnostic } from "./errors.js";
 import type { ShaderlabDiagnostic } from "./errors.js";
 import { isHintRecognized, parseDefaultValue, parseHint, valueInRange } from "./hints.js";
 
-const VALID_SHADER_TYPES = new Set<string>(["canvas_item", "postprocess", "spatial"]);
+const VALID_SHADER_TYPES = new Set<string>(["canvas_item", "canvas_25d", "postprocess", "spatial"]);
 
 const VALID_RENDER = new Set<RenderMode>([
   "unshaded",
@@ -67,7 +67,7 @@ export function validate(ast: SlabModule, filename = "input.slab"): ShaderlabDia
           `Unknown \`type\` value "${sh.typeRaw}"`,
           filename,
           sh.line ?? 1,
-          'Use type="canvas_item", type="postprocess", or type="spatial"',
+          'Use type="canvas_item", type="canvas_25d", type="postprocess", or type="spatial"',
         ),
       );
     }
@@ -125,7 +125,7 @@ export function validate(ast: SlabModule, filename = "input.slab"): ShaderlabDia
           diagnostics.push(
             diagnostic(
               "H0101",
-              `\`${mode}\` render mode has no effect for type="${sh.typeRaw}" (no lighting pipeline for canvas_item, postprocess, or spatial in 0.3)`,
+              `\`${mode}\` render mode has no effect for type="${sh.typeRaw}" (no lighting pipeline for canvas_item, canvas_25d, postprocess, or spatial)`,
               filename,
               sh.line ?? 1,
             ),
@@ -148,11 +148,17 @@ export function validate(ast: SlabModule, filename = "input.slab"): ShaderlabDia
     }
 
     for (const u of sh.uniforms) {
-      if (u.hint?.trim() === "parallax_layer" && u.type !== "float") {
+      const rawHint = u.hint?.trim();
+      if (
+        (rawHint === "parallax_layer" ||
+          rawHint === "layer_depth" ||
+          rawHint === "parallax_strength") &&
+        u.type !== "float"
+      ) {
         diagnostics.push(
           diagnostic(
             "W0201",
-            '`hint="parallax_layer"` is only valid on `type="float"` uniforms — hint will be ignored',
+            `\`hint="${rawHint}"\` is only valid on \`type="float"\` uniforms — hint will be ignored`,
             filename,
             u.line ?? sh.line ?? 1,
           ),
@@ -192,9 +198,14 @@ export function validate(ast: SlabModule, filename = "input.slab"): ShaderlabDia
         } else if (b === "CANVAS_TEXTURE" || b === "CANVAS_UV") {
           suggestion = "Use type=\"spatial\" for CANVAS_TEXTURE / CANVAS_UV (canvas augment mode)";
         } else if (b === "TEXTURE") {
-          suggestion = "Use type=\"canvas_item\" for TEXTURE";
-        } else if (b === "PARALLAX_UV") {
-          suggestion = "Use type=\"canvas_item\" for PARALLAX_UV (with optional hint=\"parallax_layer\" on a float uniform)";
+          suggestion = "Use type=\"canvas_item\" or type=\"canvas_25d\" for TEXTURE";
+        } else if (
+          b === "PARALLAX_UV" ||
+          b === "PARALLAX_OFFSET" ||
+          b === "LAYER_DEPTH" ||
+          b === "PARALLAX_STRENGTH"
+        ) {
+          suggestion = "Use type=\"canvas_25d\" for first-class 2.5D parallax builtins";
         }
         diagnostics.push(
           diagnostic(

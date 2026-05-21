@@ -238,4 +238,34 @@ describe("shader_frame composed pipeline", () => {
     const terminal = terminalRuntime(bloom);
     expect(terminal.uniforms.threshold).toBe(0.4);
   });
+
+  it("composes canvas_25d feeders with spatial augments and postprocess terminals", () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const gl = createMockGl();
+    const canvas = createCanvas(gl);
+
+    const src = readFileSync(join(fixtures, "canvas_25d_chain_ok.slab"), "utf8");
+    const lib = buildSlabLibrary(compileSlab(src, "canvas_25d_chain_ok.slab").output!);
+    const ripple = lib.__invokeSlabFrame("ripple", {}) as ShaderLabRuntime;
+    const rippleDraw = vi.spyOn(ripple, "drawScenePass");
+
+    const grade = composeSlabFrame(lib, "grade", { depth: 0.7, gain: 1.4 }, [ripple]);
+    grade.mount(canvas);
+
+    const clouds = [...lib.instances.values()].find((i) => i.id === "clouds");
+    expect(clouds).toBeDefined();
+    expect(clouds!.type).toBe("canvas_25d");
+    expect(clouds!.uniforms.depth).toBe(0.7);
+    expect(terminalRuntime(grade).uniforms.gain).toBe(1.4);
+
+    const cloudsDraw = vi.spyOn(clouds!, "drawScenePass");
+    terminalRuntime(grade).drawFrame();
+    expect(cloudsDraw).toHaveBeenCalled();
+    expect(rippleDraw).toHaveBeenCalled();
+
+    grade.unmount();
+    vi.unstubAllGlobals();
+  });
 });

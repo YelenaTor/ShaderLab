@@ -1,13 +1,17 @@
-# ShaderLab — vanilla Vite example
+# ShaderLab Vanilla Vite Example
 
-**Schema 2.0 (`shader_frame`)** demo: `hello.slab` defines `bg` + `chroma`; `main.ts` calls `shader_frame.*` and mounts a post chain.
+This example demonstrates the current Schema 2.0 flow:
 
-## Run locally
+- `hello.slab` defines a `canvas_25d` background frame named `bg`.
+- `hello.slab` also defines a `postprocess` frame named `chroma`.
+- `main.ts` calls `shader_frame.chroma(hello) { ... }`.
+- ShaderLab auto-wires `bg -> chroma` and mounts one `ShaderFrameInstance`.
 
-Build the parent package first:
+## Run
+
+From the repository root:
 
 ```bash
-cd ../..
 npm install
 npm run build
 cd examples/vanilla-vite
@@ -15,21 +19,24 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints. You should see an animated background with a chromatic-style post pass.
+Open the URL printed by Vite.
 
-With `npm run dev`, editing `hello.slab` hot-reloads WebGL programs. A `hello.slab.d.ts` sidecar is emitted for TypeScript (gitignored in this folder).
-
-## API shape
+## API Shape
 
 ```ts
 import { shader_frame } from "@yoruxiii/shaderlab";
 import hello from "./hello.slab";
 
 const canvas = document.getElementById("app") as HTMLCanvasElement;
-const chroma = shader_frame.chroma(hello);
+const chroma = shader_frame.chroma(hello) {
+  depth: 0.55,
+  parallax: 0.07,
+  strength: 0.012,
+};
+
 chroma.mount(canvas);
 ```
 
-For a single `canvas_item` with no post chain, one call plus `mount` is enough — see [NEW_API.md](../../NEW_API.md).
+`depth` and `parallax` route to the upstream `canvas_25d` frame. `strength` routes to the terminal `postprocess` frame.
 
-Typing: `"types": ["@yoruxiii/shaderlab/client"]` in `tsconfig.json`.
+Typing is enabled through `"types": ["@yoruxiii/shaderlab/client"]` in `tsconfig.json`. The Vite plugin also emits a local `hello.slab.d.ts` sidecar during dev/build.

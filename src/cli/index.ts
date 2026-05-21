@@ -1,12 +1,17 @@
 #!/usr/bin/env node
-import { relative } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { detectProject } from "./detect.js";
 import { formatUnifiedDiff } from "./diff-preview.js";
 import { runInitForFramework } from "./init.js";
 import { parseShaderlabCli } from "./parse-args.js";
 import type { WriterReport } from "./writers/types.js";
 
-const VERSION = "0.4.0-testing.0";
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require(
+  join(dirname(fileURLToPath(import.meta.url)), "../../package.json"),
+) as { version: string };
 
 function printHelp(): void {
   // eslint-disable-next-line no-console

@@ -1,0 +1,7 @@
+<shaderlab version="2.0">
+  <shader_frame id="bad" type="spatial" mode="augment">
+    <fragment><![CDATA[
+COLOR = vec4(PARALLAX_OFFSET, LAYER_DEPTH, PARALLAX_STRENGTH);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

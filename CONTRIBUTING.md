@@ -1,88 +1,67 @@
 # Contributing
 
-Thanks for helping improve ShaderLab. This document is the practical checklist maintainers expect from patches.
-
-## Intent
-
-ShaderLab is **declarative slab intent → deterministic macro expansion** into GLSL plus narrow runtime glue. Prefer one obvious lowering path over open-ended escape hatches unless a change is explicitly scoped and documented in **`docs/LANGUAGE.md`** (grammar semantics) and **`docs/USAGE.md`** (integrator-facing versioning notes).
-
-## Project layout
-
-| Area | Role |
-|------|------|
-| `src/compiler/` | Parse, validate, codegen, diagnostics, `*.slab.d.ts` emission — **must not** import Vite, adapters, or CLI code |
-| `src/vite/` | Vite plugin and WebGL runtime (`ShaderLabRuntime`, `createShaderInstance`) |
-| `src/internal.ts` | `@yoruxiii/shaderlab/internal` — emit-time factory only; not documented for app authors |
-| `src/shader-frame.ts`, `src/pipeline-compose.ts` | `shader_frame` consumer API and composed pipeline wiring |
-| `src/cli/` | `shaderlab` bin (`init`, detection, config writers) |
-| `src/adapters/` | Thin Nuxt / SvelteKit / Remix entrypoints |
-| `src/react`, `src/vue`, `src/svelte` | Framework bindings |
-| `test/` | Vitest unit + integration tests; fixtures in `test/fixtures/` |
-
-## Local development
-
-From the repo root:
+## Development
 
 ```bash
-npm ci
+npm install
 npm run typecheck
-npm test
-npm run build
 npm run check:compiler-boundary
-```
-
-Use Node **18+** (see `package.json` `engines`). The compiler boundary script enforces that `src/compiler/` stays free of `vite/`, `adapters/`, and `cli/` imports.
-
-## Releasing (maintainers)
-
-Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml).
-
-| Trigger | Result |
-|---------|--------|
-| Push **`Testing`** | `npm publish --access public --tag testing` |
-| Push **`master`** | `npm publish --access public` (`latest`) |
-| Push tag **`v*`** | GitHub Release with plugin zip (no npm publish from that job) |
-
-Requires repository secret **`NPM_TOKEN`** (GitHub → Settings → Secrets and variables → Actions). Never commit tokens to the repo.
-
-Before publishing, bump `package.json` / `package-lock.json` (npm rejects duplicate versions), then from the repo root:
-
-```bash
-npm run check:compiler-boundary
-npm run typecheck
 npm test
 npm run build
 ```
 
-## Diagnostics and error codes
+The package is TypeScript and ESM-only. Source lives under `src/`; tests live under `test/`; example projects live under `examples/`.
 
-When you add or change a diagnostic:
+## Architecture
 
-1. Register it in [`src/compiler/errors.ts`](src/compiler/errors.ts) under **`ERROR_CODES`** with the correct **Warn / Hazard / Error** tier.
-2. Emit it via **`diagnostic(...)`** from that module so severity always matches the registry.
-3. Set **`filename`** and **`line`** (use `1` when there is no finer location).
-4. Add or extend a **`.slab` fixture** under `test/fixtures/` and assertions in [`test/compiler/compile.test.ts`](test/compiler/compile.test.ts) or a focused test file.
-5. Keep **[`test/compiler/error-registry-coverage.test.ts`](test/compiler/error-registry-coverage.test.ts)** green — every code ID must appear in fixtures or linked test sources.
-6. Keep **[`test/compiler/diagnostic-shape.test.ts`](test/compiler/diagnostic-shape.test.ts)** green — shape and registry alignment for fixture diagnostics.
+ShaderLab is split into layers:
 
-## Runtime changes
+- `src/compiler`: parses, validates, and emits GLSL/runtime metadata from `.slab`.
+- `src/vite`: Vite plugin, call-site transform, HMR, and browser runtime.
+- `src/adapters`: framework registration helpers.
+- `src/react`, `src/vue`, `src/svelte`: lifecycle wrappers around `ShaderFrameInstance`.
+- `src/cli`: project detection and scaffolding.
 
-The core runtime is intentionally small (compile artifacts in, WebGL lifecycle and documented feeders out — no scene graph). For PRs that expand runtime behavior, briefly cover:
+The compiler must not import Vite, runtime, adapters, or CLI code. `npm run check:compiler-boundary` enforces that rule.
 
-1. **Problem** — what breaks without the change.
-2. **Smaller alternative** — what you ruled out (userland helper, codegen-only fix, etc.) and why it failed.
-3. **Escape hatch** — how adopters avoid or override the behavior when they do not need it.
+## Changing The Slab Language
 
-## Pull requests
+When changing syntax, frame types, builtins, hints, or diagnostics:
 
-- Keep commits focused; match existing formatting and import style.
-- Run **`npm test`**, **`npm run typecheck`**, **`npm run build`**, and **`npm run check:compiler-boundary`** before pushing when your change touches compiled code or CI expectations.
-- If you touch CLI config writers, extend or adjust [`test/cli/writers.test.ts`](test/cli/writers.test.ts) so idempotent behavior stays covered.
+1. Update compiler types, parser, validator, and codegen together.
+2. Add or update fixtures under `test/fixtures`.
+3. Add compiler tests for valid and invalid cases.
+4. Update `docs/LANGUAGE.md` and any relevant usage examples.
+5. Run the full verification commands.
 
-## Documentation alignment
+## Changing Runtime Behavior
 
-- **`docs/LANGUAGE.md`** — normative `.slab` grammar & diagnostics summaries for the shipped compiler.
-- **`docs/USAGE.md`** — versioned adoption expectations (extended whenever semver-visible behaviour shifts materially).
-- **[README.md](./README.md)** — npm-facing overview, install, and quick start.
+When changing mount, uniform, texture, FBO, HMR, or composition behavior:
 
-Keep those three layers coherent whenever compiler-visible semantics move.
+1. Add focused runtime or integration tests.
+2. Keep framework helpers thin; they should only mount and unmount instances.
+3. Preserve `ShaderFrameInstance` behavior unless the change is intentional and documented.
+
+## Changing The Transform
+
+`shader_frame.<id>(lib) { ... }` is custom pre-JS syntax. The Vite transform must:
+
+- ignore strings, comments, and template literals
+- preserve `.slab` import paths
+- rewrite only ShaderLab call arguments
+- throw clear errors instead of silently dropping unsupported entries
+
+Add tests in `test/compiler/shader-frame-transform.test.ts` for every transform edge case.
+
+## Release Checklist
+
+Before publishing:
+
+```bash
+npm run typecheck
+npm run check:compiler-boundary
+npm test
+npm run build
+```
+
+Check that generated package exports match `package.json`, docs do not link to deleted files, and the vanilla Vite example still builds.

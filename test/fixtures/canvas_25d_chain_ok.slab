@@ -1,0 +1,24 @@
+<shaderlab version="2.0">
+  <shader_frame id="clouds" type="canvas_25d">
+    <uniforms>
+      <uniform name="depth" type="float" hint="layer_depth" mutable="true" default="0.25" />
+      <uniform name="parallax" type="float" hint="parallax_strength" mutable="true" default="0.04" />
+    </uniforms>
+    <fragment><![CDATA[
+COLOR = vec4(PARALLAX_UV, LAYER_DEPTH, 1.0);
+    ]]></fragment>
+  </shader_frame>
+  <shader_frame id="ripple" type="spatial" mode="augment">
+    <fragment><![CDATA[
+COLOR = texture(CANVAS_TEXTURE, CANVAS_UV + vec2(0.01 * sin(TIME), 0.0));
+    ]]></fragment>
+  </shader_frame>
+  <shader_frame id="grade" type="postprocess">
+    <uniforms>
+      <uniform name="gain" type="float" mutable="true" default="1.0" />
+    </uniforms>
+    <fragment><![CDATA[
+COLOR = texture(SCREEN_TEXTURE, SCREEN_UV) * gain;
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

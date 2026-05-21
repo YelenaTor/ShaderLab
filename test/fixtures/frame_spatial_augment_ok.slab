@@ -1,9 +1,5 @@
 <shaderlab version="2.0">
   <shader_frame id="ripple" type="spatial" mode="augment">
-    <contract>
-      <consumes>rgba</consumes>
-      <produces>rgba</produces>
-    </contract>
     <uniforms>
       <uniform name="amplitude" type="float" hint="range(0.0, 1.0)" mutable="true" default="0.3" />
     </uniforms>

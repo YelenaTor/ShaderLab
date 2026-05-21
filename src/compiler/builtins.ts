@@ -18,7 +18,10 @@ export const ALL_BUILTINS_ORDERED = [
   "NORMAL",
   "TANGENT",
   "TEXTURE",
+  "PARALLAX_OFFSET",
   "PARALLAX_UV",
+  "PARALLAX_STRENGTH",
+  "LAYER_DEPTH",
   "COLOR",
   "TIME",
   "UV",
@@ -27,6 +30,19 @@ export const ALL_BUILTINS_ORDERED = [
 const CANVAS_ITEM = new Set<string>([
   "UV",
   "PARALLAX_UV",
+  "COLOR",
+  "TEXTURE",
+  "VERTEX_COLOR",
+  "TIME",
+  "RESOLUTION",
+]);
+
+const CANVAS_25D = new Set<string>([
+  "UV",
+  "PARALLAX_UV",
+  "PARALLAX_OFFSET",
+  "LAYER_DEPTH",
+  "PARALLAX_STRENGTH",
   "COLOR",
   "TEXTURE",
   "VERTEX_COLOR",
@@ -75,6 +91,7 @@ function escapeRegExp(s: string): string {
 
 export function builtinsAllowedForType(type: ShaderType): Set<string> {
   if (type === "canvas_item") return CANVAS_ITEM;
+  if (type === "canvas_25d") return CANVAS_25D;
   if (type === "postprocess") return POSTPROCESS;
   if (type === "spatial") return SPATIAL;
   throw new Error(`unsupported shader type: ${type}`);

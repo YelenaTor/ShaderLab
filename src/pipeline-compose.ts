@@ -44,7 +44,7 @@ function findFeederId(
 ): string | null {
   for (const entry of pipeline) {
     if (entry.order >= terminal.order) continue;
-    if (entry.shaderType === "canvas_item") {
+    if (entry.shaderType === "canvas_item" || entry.shaderType === "canvas_25d") {
       return entry.id;
     }
   }
@@ -111,7 +111,7 @@ export function composeSlabFrame(
     );
   }
 
-  if (terminalEntry.shaderType === "canvas_item") {
+  if (terminalEntry.shaderType === "canvas_item" || terminalEntry.shaderType === "canvas_25d") {
     const augments = augmentInstances?.length ? augmentInstances : undefined;
     return slab.__invokeSlabFrame(terminalFrameId, augments ? { ...restOptions, augments } : restOptions);
   }
@@ -120,7 +120,7 @@ export function composeSlabFrame(
     const feederId = findFeederId(pipeline, terminalEntry);
     if (!feederId) {
       throw new Error(
-        `[shaderlab] postprocess frame "${terminalFrameId}" requires a canvas_item feeder in the same .slab library`,
+        `[shaderlab] postprocess frame "${terminalFrameId}" requires a canvas_item or canvas_25d feeder in the same .slab library`,
       );
     }
 

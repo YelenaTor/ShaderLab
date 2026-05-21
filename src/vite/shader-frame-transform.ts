@@ -1,84 +1,107 @@
 /**
- * Lowers `shader_frame.water(liquids.slab) { … }` surface syntax to valid JS.
- * `liquids.slab` → `liquids` (compiled library import).
- * Options blocks → plain object literals with `augments` array.
+ * Lowers `shader_frame.water(liquids.slab) { ... }` surface syntax to valid JS.
+ * The scanner is intentionally small and dependency-free because this syntax is
+ * not valid JavaScript until this pre-transform runs.
  */
 
-export function transformShaderFrameCalls(source: string, _id: string): { code: string } {
-  let code = transformOptionsBlocks(source);
-  // Strip `.slab` only on library bindings inside `shader_frame.*(...)` calls — not import paths.
-  code = code.replace(
-    /shader_frame\.(\w+)\(([^)]+)\)/g,
-    (_, frameId, args) =>
-      `shader_frame.${frameId}(${String(args).replace(/\b(\w+)\.slab\b/g, "$1")})`,
-  );
-  return { code };
-}
+const SHADER_FRAME_PREFIX = "shader_frame.";
+const AUGMENT_PREFIX = "augment.";
 
-function transformOptionsBlocks(code: string): string {
-  const re = /shader_frame\.(\w+)\(([^)]+)\)\s*\{/g;
-  let result = "";
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(code)) !== null) {
-    result += code.slice(last, m.index);
-    const frameId = m[1]!;
-    const libRef = m[2]!.trim();
-    const blockStart = m.index + m[0].length;
-    const blockEnd = findMatchingBrace(code, blockStart - 1);
-    if (blockEnd < 0) {
-      result += m[0];
-      last = m.index + m[0].length;
+export function transformShaderFrameCalls(source: string, id: string): { code: string } {
+  let out = "";
+  let i = 0;
+
+  while (i < source.length) {
+    const skipped = readSkippedSyntax(source, i);
+    if (skipped > i) {
+      out += source.slice(i, skipped);
+      i = skipped;
       continue;
     }
-    const body = code.slice(blockStart, blockEnd).trim();
-    const obj = parseOptionsBlock(body);
-    result += `shader_frame.${frameId}(${libRef}, ${obj})`;
-    last = blockEnd + 1;
-    re.lastIndex = last;
-  }
-  result += code.slice(last);
-  return result;
-}
 
-function findMatchingBrace(s: string, openIdx: number): number {
-  if (s[openIdx] !== "{") return -1;
-  let depth = 0;
-  for (let i = openIdx; i < s.length; i++) {
-    const c = s[i];
-    if (c === "{") depth++;
-    else if (c === "}") {
-      depth--;
-      if (depth === 0) return i;
+    if (startsWithAt(source, i, SHADER_FRAME_PREFIX) && isIdentifierBoundary(source, i - 1)) {
+      const parsed = parseShaderFrameCall(source, i, id);
+      out += parsed.code;
+      i = parsed.end;
+      continue;
     }
+
+    out += source[i]!;
+    i++;
   }
-  return -1;
+
+  return { code: out };
 }
 
-function parseOptionsBlock(body: string): string {
-  const parts = splitTopLevel(body);
+interface ParsedChunk {
+  code: string;
+  end: number;
+}
+
+interface ParsedAugment {
+  frameId: string;
+  slab: string;
+  options: string;
+}
+
+function parseShaderFrameCall(source: string, start: number, id: string): ParsedChunk {
+  let pos = start + SHADER_FRAME_PREFIX.length;
+  const frame = readIdentifier(source, pos);
+  if (!frame) {
+    throw transformError(id, source, pos, "Expected frame id after `shader_frame.`");
+  }
+  pos = frame.end;
+  pos = skipTrivia(source, pos);
+  if (source[pos] !== "(") {
+    throw transformError(id, source, pos, "Expected `(` after `shader_frame.<id>`");
+  }
+
+  const closeParen = findMatching(source, pos, "(", ")", id);
+  const args = stripSlabMemberRefs(source.slice(pos + 1, closeParen));
+  pos = skipTrivia(source, closeParen + 1);
+
+  if (source[pos] !== "{") {
+    return {
+      code: `shader_frame.${frame.name}(${args})`,
+      end: closeParen + 1,
+    };
+  }
+
+  const closeBlock = findMatching(source, pos, "{", "}", id);
+  const options = parseOptionsBlock(source.slice(pos + 1, closeBlock), id);
+  return {
+    code: `shader_frame.${frame.name}(${args}, ${options})`,
+    end: closeBlock + 1,
+  };
+}
+
+function parseOptionsBlock(body: string, id: string): string {
+  const parts = splitTopLevel(body, id);
   const fields: string[] = [];
   const augments: string[] = [];
   let loadIndex = 0;
 
   for (const part of parts) {
     const trimmed = part.trim();
-    if (!trimmed) continue;
-    const augMatch = /^augment\.(\w+)\(([^)]+)\)(?:\s*\{([\s\S]*)\})?\s*$/.exec(trimmed);
-    if (augMatch) {
-      const augId = augMatch[1]!;
-      const augLib = augMatch[2]!.trim().replace(/\.slab\b/, "");
-      const augBody = augMatch[3]?.trim();
-      const augOpts = augBody ? parseOptionsBlock(augBody) : "{}";
+    if (!trimmed || isCommentOnly(trimmed)) continue;
+
+    const augment = parseAugmentEntry(trimmed, id);
+    if (augment) {
       augments.push(
-        `{ frameId: ${JSON.stringify(augId)}, slab: ${augLib}, loadIndex: ${loadIndex}, options: ${augOpts} }`,
+        `{ frameId: ${JSON.stringify(augment.frameId)}, slab: ${augment.slab}, loadIndex: ${loadIndex}, options: ${augment.options} }`,
       );
       loadIndex++;
       continue;
     }
-    if (/^[\w.]+\s*:/.test(trimmed)) {
+
+    if (hasTopLevelColon(trimmed, id)) {
       fields.push(trimmed);
+      continue;
     }
+
+    throw new Error(
+      `[shaderlab] Unsupported shader_frame options entry in ${id}: ${summarize(trimmed)}`,
+    );
   }
 
   if (augments.length) {
@@ -87,19 +110,234 @@ function parseOptionsBlock(body: string): string {
   return `{ ${fields.join(", ")} }`;
 }
 
-function splitTopLevel(s: string): string[] {
+function parseAugmentEntry(entry: string, id: string): ParsedAugment | null {
+  let pos = skipTrivia(entry, 0);
+  if (!startsWithAt(entry, pos, AUGMENT_PREFIX)) return null;
+  pos += AUGMENT_PREFIX.length;
+
+  const frame = readIdentifier(entry, pos);
+  if (!frame) {
+    throw new Error(`[shaderlab] Expected augment id after \`augment.\` in ${id}: ${summarize(entry)}`);
+  }
+  pos = skipTrivia(entry, frame.end);
+  if (entry[pos] !== "(") {
+    throw new Error(`[shaderlab] Expected \`(\` after \`augment.${frame.name}\` in ${id}`);
+  }
+
+  const closeParen = findMatching(entry, pos, "(", ")", id);
+  const slab = stripSlabMemberRefs(entry.slice(pos + 1, closeParen).trim());
+  pos = skipTrivia(entry, closeParen + 1);
+
+  let options = "{}";
+  if (entry[pos] === "{") {
+    const closeBlock = findMatching(entry, pos, "{", "}", id);
+    options = parseOptionsBlock(entry.slice(pos + 1, closeBlock), id);
+    pos = skipTrivia(entry, closeBlock + 1);
+  }
+
+  if (pos !== entry.length) {
+    throw new Error(`[shaderlab] Unexpected content after augment call in ${id}: ${summarize(entry.slice(pos))}`);
+  }
+
+  return { frameId: frame.name, slab, options };
+}
+
+function splitTopLevel(source: string, id: string): string[] {
   const out: string[] = [];
   let depth = 0;
   let start = 0;
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
+  for (let i = 0; i < source.length; i++) {
+    const skipped = readSkippedSyntax(source, i);
+    if (skipped > i) {
+      i = skipped - 1;
+      continue;
+    }
+    const c = source[i]!;
     if (c === "{" || c === "(" || c === "[") depth++;
-    else if (c === "}" || c === ")" || c === "]") depth--;
-    else if (c === "," && depth === 0) {
-      out.push(s.slice(start, i));
+    else if (c === "}" || c === ")" || c === "]") {
+      depth--;
+      if (depth < 0) {
+        throw transformError(id, source, i, `Unexpected closing delimiter \`${c}\``);
+      }
+    } else if (c === "," && depth === 0) {
+      out.push(source.slice(start, i));
       start = i + 1;
     }
   }
-  out.push(s.slice(start));
+  if (depth !== 0) {
+    throw new Error(`[shaderlab] Unmatched delimiter in shader_frame options block in ${id}`);
+  }
+  out.push(source.slice(start));
   return out;
+}
+
+function hasTopLevelColon(source: string, id: string): boolean {
+  let depth = 0;
+  for (let i = 0; i < source.length; i++) {
+    const skipped = readSkippedSyntax(source, i);
+    if (skipped > i) {
+      i = skipped - 1;
+      continue;
+    }
+    const c = source[i]!;
+    if (c === "{" || c === "(" || c === "[") depth++;
+    else if (c === "}" || c === ")" || c === "]") {
+      depth--;
+      if (depth < 0) {
+        throw transformError(id, source, i, `Unexpected closing delimiter \`${c}\``);
+      }
+    } else if (c === ":" && depth === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function stripSlabMemberRefs(source: string): string {
+  let out = "";
+  let i = 0;
+  while (i < source.length) {
+    const skipped = readSkippedSyntax(source, i);
+    if (skipped > i) {
+      out += source.slice(i, skipped);
+      i = skipped;
+      continue;
+    }
+    if (
+      startsWithAt(source, i, ".slab") &&
+      i > 0 &&
+      isIdentifierChar(source[i - 1]!) &&
+      isIdentifierBoundary(source, i + ".slab".length)
+    ) {
+      i += ".slab".length;
+      continue;
+    }
+    out += source[i]!;
+    i++;
+  }
+  return out.trim();
+}
+
+function findMatching(
+  source: string,
+  openIndex: number,
+  open: "{" | "(" | "[",
+  close: "}" | ")" | "]",
+  id: string,
+): number {
+  if (source[openIndex] !== open) {
+    throw transformError(id, source, openIndex, `Expected \`${open}\``);
+  }
+  let depth = 0;
+  for (let i = openIndex; i < source.length; i++) {
+    const skipped = readSkippedSyntax(source, i);
+    if (skipped > i) {
+      i = skipped - 1;
+      continue;
+    }
+    const c = source[i]!;
+    if (c === open) depth++;
+    else if (c === close) {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  throw transformError(id, source, openIndex, `Unmatched \`${open}\``);
+}
+
+function skipTrivia(source: string, start: number): number {
+  let pos = start;
+  for (;;) {
+    while (pos < source.length && /\s/.test(source[pos]!)) pos++;
+    if (startsWithAt(source, pos, "//")) {
+      pos = readLineComment(source, pos);
+      continue;
+    }
+    if (startsWithAt(source, pos, "/*")) {
+      pos = readBlockComment(source, pos);
+      continue;
+    }
+    return pos;
+  }
+}
+
+function readSkippedSyntax(source: string, start: number): number {
+  const c = source[start];
+  if (c === '"' || c === "'") return readQuoted(source, start, c);
+  if (c === "`") return readTemplate(source, start);
+  if (startsWithAt(source, start, "//")) return readLineComment(source, start);
+  if (startsWithAt(source, start, "/*")) return readBlockComment(source, start);
+  return start;
+}
+
+function readQuoted(source: string, start: number, quote: string): number {
+  for (let i = start + 1; i < source.length; i++) {
+    const c = source[i]!;
+    if (c === "\\") {
+      i++;
+      continue;
+    }
+    if (c === quote) return i + 1;
+  }
+  return source.length;
+}
+
+function readTemplate(source: string, start: number): number {
+  for (let i = start + 1; i < source.length; i++) {
+    const c = source[i]!;
+    if (c === "\\") {
+      i++;
+      continue;
+    }
+    if (c === "`") return i + 1;
+  }
+  return source.length;
+}
+
+function readLineComment(source: string, start: number): number {
+  const end = source.indexOf("\n", start + 2);
+  return end === -1 ? source.length : end + 1;
+}
+
+function readBlockComment(source: string, start: number): number {
+  const end = source.indexOf("*/", start + 2);
+  return end === -1 ? source.length : end + 2;
+}
+
+function readIdentifier(source: string, start: number): { name: string; end: number } | null {
+  if (!isIdentifierStart(source[start])) return null;
+  let end = start + 1;
+  while (end < source.length && isIdentifierChar(source[end]!)) end++;
+  return { name: source.slice(start, end), end };
+}
+
+function isIdentifierStart(c: string | undefined): boolean {
+  return c != null && /[A-Za-z_$]/.test(c);
+}
+
+function isIdentifierChar(c: string | undefined): boolean {
+  return c != null && /[A-Za-z0-9_$]/.test(c);
+}
+
+function isIdentifierBoundary(source: string, index: number): boolean {
+  if (index < 0 || index >= source.length) return true;
+  return !isIdentifierChar(source[index]!);
+}
+
+function startsWithAt(source: string, start: number, needle: string): boolean {
+  return source.startsWith(needle, start);
+}
+
+function isCommentOnly(source: string): boolean {
+  return skipTrivia(source, 0) === source.length;
+}
+
+function summarize(source: string): string {
+  const compact = source.replace(/\s+/g, " ").trim();
+  return compact.length > 90 ? `${compact.slice(0, 87)}...` : compact;
+}
+
+function transformError(id: string, source: string, index: number, message: string): Error {
+  const line = source.slice(0, index).split("\n").length;
+  return new Error(`[shaderlab] ${id}:${line}: ${message}`);
 }

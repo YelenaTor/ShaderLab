@@ -25,11 +25,11 @@ export interface ShaderFrameInstance<TUniforms = Record<string, unknown>> {
 export interface MountOptions {
   /**
    * Upstream feeder for multi-pass chains on one canvas.
-   * `postprocess`: `canvas_item` or canvas-fed `spatial`.
-   * Canvas-fed `spatial`: `canvas_item` only.
+   * `postprocess`: `canvas_item`, `canvas_25d`, or canvas-fed `spatial`.
+   * Canvas-fed `spatial`: `canvas_item`, `canvas_25d`, or prior canvas-fed `spatial`.
    */
   feedFrom?: ShaderFrameInstance<Record<string, unknown>>;
-  /** Spatial augment instances (load order) for canvas_item frames. */
+  /** Spatial augment instances (load order) for canvas_item and canvas_25d frames. */
   augments?: ShaderFrameInstance[];
   /**
    * When set, backing-store width/height use `min(devicePixelRatio, this)` so large-DPR
@@ -86,15 +86,19 @@ function linkProgram(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShade
   return p;
 }
 
+function isCanvasFeederType(type: ShaderRuntimeMetadata["shaderType"]): boolean {
+  return type === "canvas_item" || type === "canvas_25d";
+}
+
 function isValidPostFeedPartner(partner: ShaderLabRuntime): boolean {
   const m = partner.config.metadata;
-  if (m.shaderType === "canvas_item") return true;
+  if (isCanvasFeederType(m.shaderType)) return true;
   return m.shaderType === "spatial" && m.requiresCanvasFeed === true;
 }
 
 function isValidSpatialAugmentFeedPartner(partner: ShaderLabRuntime): boolean {
   const t = partner.config.metadata.shaderType;
-  if (t === "canvas_item") return true;
+  if (isCanvasFeederType(t)) return true;
   return t === "spatial" && partner.config.metadata.requiresCanvasFeed === true;
 }
 
@@ -138,7 +142,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
   }
 
   private pendingAugments: ShaderFrameInstance[] = [];
-  /** Last spatial augment in the canvas_item chain, or null when drawing the base pass only. */
+  /** Last spatial augment in the canvas_item/canvas_25d chain, or null when drawing the base pass only. */
   private augmentDisplayHead: ShaderLabRuntime | null = null;
 
   constructor(config: ShaderInstanceConfig, options?: Record<string, unknown> & MountOptions) {
@@ -372,7 +376,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       }
       if (!isValidPostFeedPartner(p)) {
         throw new Error(
-          "[shaderlab] postprocess feedFrom must be canvas_item or canvas-fed spatial (CANVAS_TEXTURE / CANVAS_UV)",
+          "[shaderlab] postprocess feedFrom must be canvas_item, canvas_25d, or canvas-fed spatial (CANVAS_TEXTURE / CANVAS_UV)",
         );
       }
       this.partner = p;
@@ -382,12 +386,12 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires mount(canvas, { feedFrom: canvas_item or canvas-fed spatial instance })",
+          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires mount(canvas, { feedFrom: canvas_item, canvas_25d, or canvas-fed spatial instance })",
         );
       }
       if (!isValidSpatialAugmentFeedPartner(p)) {
         throw new Error(
-          "[shaderlab] spatial feedFrom must be a canvas_item or canvas-fed spatial shader runtime (got a different shader type)",
+          "[shaderlab] spatial feedFrom must be a canvas_item, canvas_25d, or canvas-fed spatial shader runtime (got a different shader type)",
         );
       }
       this.partner = p;
@@ -395,7 +399,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       this.ensureFbo();
     }
 
-    if (meta.shaderType === "canvas_item" && this.pendingAugments.length && this.gl) {
+    if (isCanvasFeederType(meta.shaderType) && this.pendingAugments.length && this.gl) {
       let upstream: ShaderLabRuntime = this;
       for (const aug of this.pendingAugments) {
         if (aug instanceof ShaderLabRuntime) {
@@ -586,7 +590,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
     if (meta.referencedBuiltins.includes("RESOLUTION")) {
       names.add("u_slab_resolution");
     }
-    if (meta.shaderType === "canvas_item" && meta.referencedBuiltins.includes("TEXTURE")) {
+    if (isCanvasFeederType(meta.shaderType) && meta.referencedBuiltins.includes("TEXTURE")) {
       names.add("u_slab_texture_builtin");
     }
     if (meta.shaderType === "postprocess") {
@@ -716,7 +720,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
         gl.bindTexture(gl.TEXTURE_2D, null);
       }
     } else if (!this.slave) {
-      if (meta.shaderType === "canvas_item" && this.augmentDisplayHead) {
+      if (isCanvasFeederType(meta.shaderType) && this.augmentDisplayHead) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, w, h);
         gl.clearColor(0, 0, 0, 1);
@@ -918,7 +922,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
   }
 
   private bindBuiltinTextures(gl: WebGL2RenderingContext, meta: ShaderRuntimeMetadata): void {
-    if (meta.shaderType !== "canvas_item") return;
+    if (!isCanvasFeederType(meta.shaderType)) return;
     if (!meta.referencedBuiltins.includes("TEXTURE")) return;
     const unit = meta.textureBuiltinUnit ?? 0;
     const loc = this.locations.get("u_slab_texture_builtin");

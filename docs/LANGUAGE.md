@@ -1,215 +1,193 @@
-# Slab language & compiler reference
+# Slab Language
 
-Normative reference for **`.slab` documents** and the ShaderLab compiler. Implementation: `src/compiler/`; tests: `test/compiler/`, `test/fixtures/`.
-
-> **Schema 2.0 (`shader_frame`)** — `@yoruxiii/shaderlab@testing`: root **`version="2.0"`**, **`<shader_frame>`** units, page calls via **`shader_frame.*`**. Consumer summary: [NEW_API.md](../NEW_API.md). Full reference: [API.md](./API.md).
->
-> **This document’s sections below describe Schema 1.0 (`<shader>`, `version="1.0"`)** as shipped on npm **`latest`** (`0.3.x`). On the testing line, Schema 1.0 slabs are **rejected** (`E0402`).
-
-For integration (Vite, CLI, which schema you are on), see **[USAGE.md](./USAGE.md)**.
-
----
-
-## Document shape (Schema 1.0)
-
-### Root
+ShaderLab `.slab` files use Schema 2.0.
 
 ```xml
-<shaderlab version="1.0">
-  <!-- one or more <shader> … -->
+<shaderlab version="2.0">
+  <shader_frame id="name" type="canvas_item">
+    <fragment><![CDATA[
+COLOR = vec4(UV, 0.0, 1.0);
+    ]]></fragment>
+  </shader_frame>
 </shaderlab>
 ```
 
+## Document Shape
+
+The root element must be:
+
+```xml
+<shaderlab version="2.0">...</shaderlab>
+```
+
+Legacy `<shader>` elements and `version="1.0"` are rejected. A document may contain one or more `<shader_frame>` elements.
+
+## `shader_frame`
+
+Required attributes:
+
 | Attribute | Meaning |
-|-----------|---------|
-| **`version`** | Must be **`1.0`** today. Unknown values emit **`E0102`**. Missing root element / malformed XML emits **`E0101`**. |
+| --- | --- |
+| `id` | Callable frame name used by `shader_frame.<id>(library)`. |
+| `type` | `canvas_item`, `canvas_25d`, `spatial`, or `postprocess`. |
 
-### Shader element
+Optional attributes:
 
-> **Deprecated on `0.3.x` stable:** `<shader>` emits a deprecation diagnostic (see **0.3.1** changelog). **Schema 2.0** hard-errors `<shader>` as **`E0401`**. Migration: **[API.md](./API.md)**.
-
-Each `<shader>` declares one compiled programme pair plus metadata.
-
-| Attribute | Required | Meaning |
-|-----------|----------|---------|
-| **`id`** | Yes | Identifier exported from emitted JS (`^[a-zA-Z_][a-zA-Z0-9_]*$`). **`E0201`** / **`E0202`** when missing or duplicated. |
-| **`type`** | Yes | **`canvas_item`**, **`postprocess`**, or **`spatial`**. Anything else → **`E0203`**. |
-| **`render_mode`** | No | Whitespace or comma separated tokens (unordered set); unknown tokens → **`W0101`**. |
+| Attribute | Meaning |
+| --- | --- |
+| `mode` | `spatial` only: `standalone` or `augment`. |
+| `render_mode` | Comma or whitespace separated raster flags. |
 
 Children:
 
 | Element | Meaning |
-|---------|---------|
-| `<uniforms> … </uniforms>` | Optional; wraps `<uniform>` rows (see Uniforms). |
-| `<vertex>` | Optional CDATA GLSL merged into the generated vertex shader (see **Vertex body order** below). |
-| `<fragment>` | **Required** non-empty CDATA fragment stage (`E0301` if missing / empty). |
+| --- | --- |
+| `<uniforms>` | Optional wrapper for `<uniform>` rows. |
+| `<vertex>` | Optional vertex GLSL. Not valid on `postprocess` or spatial augment frames. |
+| `<fragment>` | Required fragment GLSL. |
 
-**Vertex body order (0.3.x).** The templates emit a small `main()` that sets up **`slab_pos`**, **`UV`**, **`VERTEX_COLOR`** (where the template exposes it), and an initial **`gl_Position`**, then append your `<vertex>` body **after** that setup. Your code may read those varyings and may **overwrite `gl_Position`** to customize the fullscreen triangle — this is the supported way to do **vertex-forward 2.5D** on **`canvas_item`**: shear, parallax-style UV offsets, or subtle NDC tweaks before the fragment stage. If you pass custom data vertex → fragment, declare matching `out` / `in` pairs yourself (normal GLSL300 rules apply). The name **`slab_pos`** is an implementation detail, not a stable public builtin. A future opt-in (for example a dedicated `render_mode`) could skip the default setup entirely if full custom vertex `main()` becomes a priority.
-
-**Worked sketch (2.5D UV carry):** in `<vertex>`, after defaults, `out vec2 myUv; myUv = UV + vec2(0.02 * sin(TIME), 0.0);` and declare `in vec2 myUv;` in `<fragment>` — pair varyings explicitly; the slab compiler does not invent names beyond **`UV`** / **`VERTEX_COLOR`** unless you add them.
-
-### Uniform rows
+## Uniforms
 
 ```xml
-<uniform name="strength" type="float" hint="range(0.0, 1.0)" default="0.5" />
+<uniform name="speed" type="float" hint="range(0.0, 2.0)" mutable="true" default="1.0" />
 ```
 
+Attributes:
+
 | Attribute | Meaning |
-|-----------|---------|
-| **`name`** | Slab-side uniform identifier (`E0302` if absent; must match `^[a-zA-Z_][a-zA-Z0-9_]*$` or **`E0304`**). |
-| **`type`** | `float`, `int`, `bool`, `vec2`, `vec3`, `vec4`, `sampler2D` (`E0303` when unknown). |
-| **`hint`** | Optional semantic annotation (see Hints). Unknown hints → **`W0201`**. |
-| **`default`** | Optional textual initializer validated against type / range (`W0202` when range violated). |
+| --- | --- |
+| `name` | GLSL-safe identifier. Runtime uniform name is `u_<name>`. |
+| `type` | `float`, `int`, `bool`, `vec2`, `vec3`, `vec4`, or `sampler2D`. |
+| `mutable` | `true` means call-site overrides and `.set()` are allowed. |
+| `deferred` | `true` means the consumer is expected to provide the value. |
+| `default` | Optional initial value. |
+| `hint` | Optional semantic metadata. |
 
----
+Recognized hints:
 
-## Shader types and builtins
+| Hint | Use |
+| --- | --- |
+| `range(min,max)` | Numeric range metadata and runtime clamp. |
+| `color` | Linearizes `vec3` / `vec4` color input at bind time. |
+| `texture`, `albedo`, `normal_map` | Texture semantics for tools and generated types. |
+| `mouse_position` | Runtime-owned normalized mouse coordinate. |
+| `layer_depth` | `canvas_25d` depth source. Must be `float`. |
+| `parallax_strength` | `canvas_25d` parallax scale source. Must be `float`. |
+| `parallax_layer` | Legacy alias for `layer_depth`. Must be `float`. |
 
-The compiler recognises **`canvas_item`**, **`postprocess`**, and **`spatial`**.
-
-The compiler scans vertex + fragment bodies for **builtin identifiers** (identifier boundaries). Usage outside allowed sets triggers **`H0312`**.
+## Frame Types
 
 ### `canvas_item`
 
-Allowed builtins:
+2D fullscreen/canvas shader. It draws directly to the mounted canvas unless it feeds a postprocess or spatial augment chain.
 
-`UV`, `PARALLAX_UV`, `COLOR`, `TEXTURE`, `VERTEX_COLOR`, `TIME`, `RESOLUTION`.
+Builtins:
 
-Typical role: draw-to-screen fragment passes that sample app-supplied textures (`TEXTURE`) or operate on UV/time.
+```text
+UV, PARALLAX_UV, COLOR, TEXTURE, VERTEX_COLOR, TIME, RESOLUTION
+```
 
-**Parallax / layered 2.5D:** attach **`hint="parallax_layer"`** to a **`float`** uniform (suggested range **0.0–1.0**). When that hint is present and/or the shader references **`PARALLAX_UV`**, the template emits a vertex varying:
+`PARALLAX_UV` and `hint="parallax_layer"` remain supported for compatibility. New 2.5D work should use `canvas_25d`.
 
-`PARALLAX_UV = UV + vec2(layer_depth * TIME * 0.05, 0.0)` (horizontal drift; **`layer_depth`** is the uniform value, or **`TIME * 0.05`** alone if no hint uniform). Use **`PARALLAX_UV`** in the fragment for scrolling backgrounds; stack a canvas-fed **`spatial`** augment on top for foreground layers that sample **`CANVAS_TEXTURE`** / **`CANVAS_UV`** (immediate upstream). See fixtures **`parallax_layer_canvas.slab`** and **`layered_parallax_spatial_post.slab`**.
+### `canvas_25d`
 
-### `postprocess`
+First-class 2.5D canvas shader. It uses the same fullscreen pass foundation as `canvas_item`, but always generates parallax varyings.
 
-Allowed builtins:
+Builtins:
 
-`SCREEN_UV`, `SCREEN_TEXTURE`, `COLOR`, `TIME`, `RESOLUTION`.
+```text
+UV, PARALLAX_UV, PARALLAX_OFFSET, LAYER_DEPTH, PARALLAX_STRENGTH,
+COLOR, TEXTURE, VERTEX_COLOR, TIME, RESOLUTION
+```
 
-Typical role: full-screen passes sampling the **immediate upstream** pass via runtime **`feedFrom`** (`canvas_item` or the last canvas-fed **`spatial`** in a chain; same FBO pattern as **`spatial`** augment).
+Generated vertex behavior:
+
+```glsl
+PARALLAX_OFFSET = vec2(LAYER_DEPTH * TIME * PARALLAX_STRENGTH, 0.0);
+PARALLAX_UV = UV + PARALLAX_OFFSET;
+```
+
+`LAYER_DEPTH` comes from the first `float` uniform with `hint="layer_depth"` or legacy `hint="parallax_layer"`. If absent, it defaults to `1.0`.
+
+`PARALLAX_STRENGTH` comes from the first `float` uniform with `hint="parallax_strength"`. If absent, it defaults to `0.05`.
+
+Example:
+
+```xml
+<shader_frame id="clouds" type="canvas_25d">
+  <uniforms>
+    <uniform name="depth" type="float" hint="layer_depth" mutable="true" default="0.35" />
+    <uniform name="parallax" type="float" hint="parallax_strength" mutable="true" default="0.05" />
+  </uniforms>
+  <fragment><![CDATA[
+vec2 uv = PARALLAX_UV;
+COLOR = vec4(uv, LAYER_DEPTH, 1.0);
+  ]]></fragment>
+</shader_frame>
+```
 
 ### `spatial`
 
-**Standalone:** same draw model as **`canvas_item`** (fullscreen triangle to the default framebuffer) — omit **`CANVAS_*`** builtins.
+Spatial frames are fullscreen passes with two modes.
 
-**Augment (canvas-fed):** when the shader references **`CANVAS_TEXTURE`** and/or **`CANVAS_UV`**, the compiler sets metadata **`requiresCanvasFeed: true`**. At runtime, **`attach(canvas, { feedFrom: upstream })`** is required, where **`upstream`** is a **`canvas_item`** or a prior canvas-fed **`spatial`** instance. **`CANVAS_*`** builtins sample that **immediate upstream** pass (not “3D canvas” geometry). The runtime renders the feeder into an offscreen texture, then runs **`spatial`** sampling it (mirrors **`postprocess`** vs **`SCREEN_*`**). Standalone **`spatial`** (no **`CANVAS_*`**) remains a convenience fullscreen pass; augment mode is the intended helper for layered composition.
+`mode="standalone"` draws independently.
 
-Allowed builtins (0.3.x):
+`mode="augment"` samples the immediate upstream pass through:
 
-- Always: `UV`, `COLOR`, `VERTEX_COLOR`, `TIME`, `RESOLUTION`.
-- Augment-only: `CANVAS_UV`, `CANVAS_TEXTURE` (template maps **`CANVAS_UV`** to the fullscreen varying aligned with the offscreen pass, like **`SCREEN_UV`** for post).
+```text
+CANVAS_TEXTURE, CANVAS_UV
+```
 
-PBR-style names reserved in the lexer (**`WORLD_POSITION`**, **`VIEW_DIRECTION`**, etc.) remain **invalid** in **`spatial`** until a future template + runtime contract exists — they still produce **`H0312`**.
+Augments are used from app code:
 
-### Multi-stage slabs (`useShader`)
+```ts
+shader_frame.clouds(fx) {
+  augment.ripple(fx),
+}
+```
 
-When a single `.slab` file exports multiple shaders, **`useShader(importedModule)`** wires passes in **pipeline order** (not XML order):
+### `postprocess`
 
-1. **`canvas_item`** (base feeder)
-2. **Canvas-fed `spatial`** augments (zero or more, in **compile emission order**, max **8** via **`useShader`**)
-3. **`postprocess`**, if present
+Postprocess frames sample the upstream pipeline through:
 
-**`postprocess`** `feedFrom` may point at the **`canvas_item`** or at the **last** canvas-fed **`spatial`** in the chain; **`SCREEN_TEXTURE`** samples whichever stage is immediately upstream. Deeper or custom graphs — attach instances manually.
+```text
+SCREEN_TEXTURE, SCREEN_UV
+```
 
-### Names that appear in tooling lists but are invalid here
+They run last. Calling a postprocess frame auto-composes the upstream `canvas_item` or `canvas_25d` in the same slab.
 
-The lexer recognises additional uppercase tokens for forward-looking grammar parity (for example names familiar from wider ShaderLab roadmaps). **They must not appear** in sources targeting a given **`type`** unless that release’s allowlist includes them — stray mentions produce **`H0312`**.
+## Pipeline
 
----
+ShaderLab uses a fixed pipeline shape:
 
-## Hints (`hint="…"`)
+```text
+canvas_item | canvas_25d -> spatial augment(s) -> postprocess
+```
 
-Recognised patterns:
+XML order does not create arbitrary graphs. For auto-composed postprocess frames, ShaderLab uses the first upstream `canvas_item` or `canvas_25d` before the postprocess frame in emitted pipeline order.
 
-| Hint | Notes |
-|------|-------|
-| **`range(min,max)`** | Numeric clamp metadata + uniform typings (`float` / `int`). |
-| **`color`** | Influences emitted typings and runtime linearisation for vec colour tuples. |
-| **`texture`**, **`albedo`**, **`normal_map`** | Texture feeder semantics + sampler typings. |
-| **`mouse_position`** | Runtime-owned **`vec2`**; typings expose readonly tuples; uniforms ignore manual writes at runtime. |
-| **`parallax_layer`** | **`float`** only (`W0201` on other types); drives horizontal **`PARALLAX_UV`** offset on **`canvas_item`** (see Parallax above). |
+## Diagnostics
 
-Unknown literal hints → **`W0201`**.
+Diagnostics include:
 
----
+- `code`
+- `severity`: `Warn`, `Hazard`, or `Error`
+- `message`
+- optional `filename`, `line`, and `suggestion`
 
-## `render_mode`
+Common codes:
 
-Tokens combine as an **unordered set** — reordering equivalent tokens must not change lowered raster state (`test/compiler/compile.test.ts` guards ordering).
-
-Recognised tokens today:
-
-| Token | Compiler/runtime notes (0.1.x) |
-|-------|----------------------------------|
-| **`blend_add`**, **`blend_multiply`**, **`blend_premult_alpha`** | Mutually exclusive blend prescriptions (`H0201` if multiple combined). |
-| **`cull_disabled`** | Disables face culling when emitted runtime applies state. |
-| **`unshaded`**, **`depth_draw_never`**, **`diffuse_toon`**, **`specular_disabled`** | Parsed but **no lighting pipeline ships for `canvas_item` / `postprocess` / `spatial` in 0.3** — combinations emit **`H0101`** hazards explaining no runtime lighting effect. |
-
-Unknown tokens → **`W0101`** (ignored).
-
----
-
-## Diagnostics and stable codes
-
-Diagnostics carry **`code`**, **`severity`**, **`message`**, optional **`suggestion`**, plus **`filename`** / **`line`**.
-
-**Line numbers:** diagnostics report the **starting line of the offending element’s opening tag** (e.g. `<shader>`, `<uniform>`), derived from a best-effort scan of the raw source. Malformed or unusual XML may still yield inaccurate lines; treat **`message`** and **`code`** as authoritative.
-
-Severity tiers:
-
-| Tier | Meaning |
-|------|---------|
-| **Warn** | Emission proceeds; condition logged / ignored per message. |
-| **Hazard** | Emission proceeds; likely footgun or contradictory intent. |
-| **Error** | Emission blocked (`output === null` from `compileSlab`). |
-
-Registered codes (`ERROR_CODES` in source):
-
-| Code | Severity | Summary |
-|------|----------|---------|
-| **E0101** | Error | Malformed / missing root `<shaderlab>` context |
-| **E0102** | Error | Unknown root `version` |
-| **E0201** | Error | Shader `id` missing / invalid pattern |
-| **E0202** | Error | Duplicate shader `id` within file |
-| **E0203** | Error | Missing / unknown shader `type` |
-| **E0301** | Error | Missing / empty `<fragment>` |
-| **E0302** | Error | Uniform missing `name` |
-| **E0303** | Error | Unknown uniform `type` |
-| **E0304** | Error | Invalid uniform `name` (identifier shape) |
-| **E0401**–**E0409** | Error | **Schema 2.0 only** — see [API.md](./API.md) |
-| **E0501**–**E0503** | Error | **Planned 0.5.x** (not in `0.4.0-testing.0`) |
-| **H0101** | Hazard | Lighting-style `render_mode` tokens ineffective on supported shader kinds |
-| **H0201** | Hazard | Contradictory blend modes combined |
-| **H0312** | Hazard | Builtin referenced outside allowed list for shader type |
-| **H0401** | Hazard | Runtime clamp when assigning uniforms outside declared numeric range |
-| **W0101** | Warn | Unknown `render_mode` token |
-| **W0201** | Warn | Unknown `hint` |
-| **W0202** | Warn | Default numeric literal outside `range()` |
-| **W0301** | Warn | Present but empty `<vertex>` |
-| **W0401**–**W0403** | Warn | **Schema 2.0** — see [API.md](./API.md) |
-| **W0501** | Warn | **Planned 0.5.x** |
-
-Compiler helpers **must** emit via `diagnostic(...)` so severities cannot drift from this registry.
-
----
-
-## Compilation outputs
-
-Successful compilation yields, per shader:
-
-- Generated **vertex / fragment GLSL** strings (WebGL-targeted templates).
-- **`ShaderRuntimeMetadata`** (shader kind, uniforms binding plans, blend/cull flags, builtin references; for **`spatial`** augment, **`requiresCanvasFeed`** and **`canvasTextureUnit`** when **`CANVAS_TEXTURE`** is used).
-- Consumption path emits ES modules plus optional sibling **`*.slab.d.ts`** (see plugin pipeline).
-
-There is **no** separate runtime bytecode — ShaderLab expands slabs into GLSL + JS metadata consumed directly by `ShaderLabRuntime`.
-
----
-
-## Maintainer alignment
-
-When behaviour changes:
-
-1. Update **this document** and the matching bullet under **`docs/USAGE.md` → Version guide**.
-2. Extend fixtures / Vitest coverage (`test/fixtures`, `test/compiler/*`).
-3. Surface intentional API divergences in **README** (“Spec and docs divergences”) if user-visible guarantees shift.
+| Code | Meaning |
+| --- | --- |
+| `E0101` | Missing or malformed root document. |
+| `E0201` | Missing or invalid frame id. |
+| `E0202` | Duplicate frame id. |
+| `E0203` | Missing or unknown frame type. |
+| `E0301` | Missing or empty fragment block. |
+| `E0302`-`E0304` | Uniform shape/type/name errors. |
+| `E0401` | Legacy `<shader>` element. |
+| `E0402` | Root version is not `2.0`. |
+| `E0405`-`E0407` | Invalid vertex/spatial placement. |
+| `H0312` | Builtin used in the wrong frame type. |
+| `W0201` | Unknown or incompatible hint. |
+| `W0202` | Default value outside `range()`. |

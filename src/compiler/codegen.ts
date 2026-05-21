@@ -1,4 +1,5 @@
 import type { CompilerOutput, SlabModule } from "./types.js";
+import { buildCanvas25dShader } from "./templates/canvas_25d.js";
 import { buildCanvasItemShader } from "./templates/canvas_item.js";
 import { buildPostprocessShader } from "./templates/postprocess.js";
 import { buildSpatialShader } from "./templates/spatial.js";
@@ -9,6 +10,9 @@ export function generate(ast: SlabModule): CompilerOutput {
     switch (sh.type) {
       case "canvas_item":
         shaders.push(buildCanvasItemShader(sh));
+        break;
+      case "canvas_25d":
+        shaders.push(buildCanvas25dShader(sh));
         break;
       case "postprocess":
         shaders.push(buildPostprocessShader(sh));

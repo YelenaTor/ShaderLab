@@ -9,3 +9,5 @@ const destDir = join(root, "dist", "svelte");
 const dest = join(destDir, "ShaderFrame.svelte");
 mkdirSync(destDir, { recursive: true });
 copyFileSync(src, dest);
+
+copyFileSync(join(root, "src", "client.d.ts"), join(root, "dist", "client.d.ts"));

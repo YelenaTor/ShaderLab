@@ -19,7 +19,7 @@ const UNIFORM_TYPES = new Set<UniformType>([
   "sampler2D",
 ]);
 
-const SHADER_TYPES = new Set<ShaderType>(["canvas_item", "postprocess", "spatial"]);
+const SHADER_TYPES = new Set<ShaderType>(["canvas_item", "canvas_25d", "postprocess", "spatial"]);
 
 /** Same shape as shader `id`; uniform names must match so GLSL `u_*` names stay aligned with slab identifiers. */
 const UNIFORM_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -71,7 +71,7 @@ export function parse(src: string, filename = "input.slab"): ParseResult {
         "`<shader>` element found. Not valid in schema v2.0.",
         filename,
         1,
-        "Replace <shader> with <shader_frame> and version=\"2.0\" — see NEW_API.md",
+        "Replace <shader> with <shader_frame> and version=\"2.0\" — see docs/LANGUAGE.md",
       ),
     );
   }

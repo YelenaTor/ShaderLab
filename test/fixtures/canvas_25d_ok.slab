@@ -1,0 +1,12 @@
+<shaderlab version="2.0">
+  <shader_frame id="clouds" type="canvas_25d">
+    <uniforms>
+      <uniform name="depth" type="float" hint="layer_depth" mutable="true" default="0.35" />
+      <uniform name="parallax" type="float" hint="parallax_strength" mutable="true" default="0.05" />
+    </uniforms>
+    <fragment><![CDATA[
+vec2 uv = PARALLAX_UV + PARALLAX_OFFSET * 0.25;
+COLOR = vec4(uv, LAYER_DEPTH + PARALLAX_STRENGTH, 1.0);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

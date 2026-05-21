@@ -16,6 +16,8 @@ export const KNOWN_HINTS = new Set([
   "normal_map",
   "mouse_position",
   "parallax_layer",
+  "layer_depth",
+  "parallax_strength",
 ]);
 
 export function parseHint(raw: string | null): ParsedHint | null {
