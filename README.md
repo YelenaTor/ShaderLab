@@ -12,6 +12,13 @@ Requirements:
 npm install @yoruxiii/shaderlab@testing
 ```
 
+**npm tracks:** Schema 2.0 (`shader_frame`, `<shader_frame>`) is on the **`testing`** dist-tag. **`latest`** is Schema 1.0 (legacy `<shader>` / `useShader`) — the two lines are not interchangeable. Use **`@testing`** for new projects.
+
+```bash
+npm install @yoruxiii/shaderlab          # Schema 1.0 (latest)
+npm install @yoruxiii/shaderlab@testing  # Schema 2.0 (current)
+```
+
 ## Mental Model
 
 ```text
@@ -117,6 +124,8 @@ The Vite plugin emits sibling `*.slab.d.ts` files by default for frame-specific 
 
 ## Docs
 
+- [AGENTS.md](./docs/AGENTS.md) — guide for AI coding assistants (ships in the npm package)
+- [Example](./docs/example/README.md) — minimal `canvas_25d` + postprocess reference (ships in npm)
 - [Usage](./docs/USAGE.md)
 - [Language](./docs/LANGUAGE.md)
 - [API](./docs/API.md)

@@ -33,7 +33,7 @@ describe("init dry-run", () => {
       expect(slabDiff?.after).toContain("<shaderlab");
       const viteDiff = r.fileDiffs?.find((d) => d.path.endsWith("vite.config.ts"));
       expect(viteDiff?.before).toBe(beforeCfg);
-      expect(viteDiff?.after).toContain('shaderlab/vite');
+      expect(viteDiff?.after).toContain('@yoruxiii/shaderlab/vite');
       expect(viteDiff?.after).toContain("shaderlab()");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -73,5 +73,18 @@ describe("init dry-run", () => {
     expect(u).toContain("--- /dev/null");
     expect(u).toContain("+++ b/src/shaders/hello.slab");
     expect(u).toContain("+hello");
+  });
+
+  it("dry-run includes selected example preview", () => {
+    const root = copyFixture("vite-minimal");
+    try {
+      const r = runInitForFramework("vite", root, { dryRun: true, example: "vue" });
+      const exampleDiff = r.fileDiffs?.find((d) => d.path.endsWith("ShaderLabExample.vue"));
+      expect(exampleDiff?.before).toBeNull();
+      expect(exampleDiff?.after).toContain("@yoruxiii/shaderlab/vue");
+      expect(existsSync(join(root, "src", "ShaderLabExample.vue"))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

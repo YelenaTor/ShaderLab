@@ -1,10 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import type { UiFramework } from "./writers/types.js";
 
 export type DetectedFramework = "nuxt" | "next" | "sveltekit" | "remix" | "vite" | "unknown";
 
 export interface DetectResult {
   framework: DetectedFramework;
+  ui: UiFramework;
   projectRoot: string;
   packageJsonPath: string;
   packageName: string | null;
@@ -65,6 +67,22 @@ export function detectFrameworkFromDeps(deps: Record<string, string>): DetectedF
   return "unknown";
 }
 
+export function detectUiFromDeps(
+  deps: Record<string, string>,
+  framework: DetectedFramework = detectFrameworkFromDeps(deps),
+): UiFramework {
+  if ("react" in deps || "@vitejs/plugin-react" in deps || "@vitejs/plugin-react-swc" in deps) {
+    return "react";
+  }
+  if ("vue" in deps || "@vitejs/plugin-vue" in deps) {
+    return "vue";
+  }
+  if ("svelte" in deps || "@sveltejs/vite-plugin-svelte" in deps || "@sveltejs/kit" in deps) {
+    return "svelte";
+  }
+  return framework === "vite" ? "vanilla" : "unknown";
+}
+
 export function detectProject(startDir = process.cwd()): DetectResult | null {
   const projectRoot = findProjectRoot(startDir);
   if (!projectRoot) {
@@ -72,8 +90,10 @@ export function detectProject(startDir = process.cwd()): DetectResult | null {
   }
   const deps = readDeps(projectRoot);
   const framework = detectFrameworkFromDeps(deps);
+  const ui = detectUiFromDeps(deps, framework);
   return {
     framework,
+    ui,
     projectRoot,
     packageJsonPath: join(projectRoot, "package.json"),
     packageName: readPackageName(projectRoot),

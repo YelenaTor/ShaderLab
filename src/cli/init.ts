@@ -5,7 +5,7 @@ import { writeNuxtConfig } from "./writers/nuxt.js";
 import { writeSvelteKitConfig } from "./writers/sveltekit.js";
 import { writeRemixConfig } from "./writers/remix.js";
 import { writeNextStub } from "./writers/next.js";
-import { scaffoldHelloSlab } from "./writers/scaffold.js";
+import { scaffoldShaderlabFiles } from "./writers/scaffold.js";
 
 export function runInitForFramework(
   framework: DetectedFramework,
@@ -25,6 +25,6 @@ export function runInitForFramework(
       return writeNextStub(projectRoot, opts);
     case "unknown":
     default:
-      return scaffoldHelloSlab(projectRoot, opts);
+      return scaffoldShaderlabFiles(projectRoot, opts);
   }
 }

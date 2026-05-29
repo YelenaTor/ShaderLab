@@ -24,7 +24,7 @@ describe("CLI writers", () => {
       const r1 = writeViteConfig(root);
       expect(r1.modifiedFiles.length).toBeGreaterThan(0);
       const cfg = readFileSync(join(root, "vite.config.ts"), "utf8");
-      expect(cfg).toContain('import shaderlab from "shaderlab/vite"');
+      expect(cfg).toContain('import shaderlab from "@yoruxiii/shaderlab/vite"');
       expect(cfg).toContain("shaderlab()");
       const r2 = writeViteConfig(root);
       expect(r2.skipped.some((s) => s.includes("vite.config"))).toBe(true);
@@ -38,7 +38,7 @@ describe("CLI writers", () => {
     try {
       writeViteConfig(root);
       let cfg = readFileSync(join(root, "vite.config.ts"), "utf8");
-      cfg = cfg.replace(/from\s+"shaderlab\/vite"/g, "from 'shaderlab/vite'");
+      cfg = cfg.replace(/from\s+"@yoruxiii\/shaderlab\/vite"/g, "from 'shaderlab/vite'");
       writeFileSync(join(root, "vite.config.ts"), cfg, "utf8");
       const r3 = writeViteConfig(root);
       expect(r3.skipped.some((s) => s.includes("vite.config"))).toBe(true);
@@ -52,7 +52,7 @@ describe("CLI writers", () => {
     try {
       writeNuxtConfig(root);
       const cfg = readFileSync(join(root, "nuxt.config.ts"), "utf8");
-      expect(cfg).toContain("shaderlab/nuxt");
+      expect(cfg).toContain("@yoruxiii/shaderlab/nuxt");
       expect(existsSync(join(root, "src", "shaders", "hello.slab"))).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -85,6 +85,18 @@ describe("CLI writers", () => {
       expect(r1.modifiedFiles.some((f) => f.includes("nuxt.config"))).toBe(true);
       const r2 = writeNuxtConfig(root);
       expect(r2.skipped.some((s) => s.includes("nuxt.config"))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("creates selected framework examples", () => {
+    const root = copyFixture("vite-minimal");
+    try {
+      const r = writeViteConfig(root, { example: "react" });
+      expect(r.createdFiles.some((f) => f.endsWith("ShaderLabExample.tsx"))).toBe(true);
+      const example = readFileSync(join(root, "src", "ShaderLabExample.tsx"), "utf8");
+      expect(example).toContain("@yoruxiii/shaderlab/react");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

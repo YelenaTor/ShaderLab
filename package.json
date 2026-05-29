@@ -1,7 +1,7 @@
 {
   "name": "@yoruxiii/shaderlab",
-  "version": "0.4.0-testing.1",
-  "description": "Vite-first shader DSL plugin for the web (.slab → GLSL)",
+  "version": "0.4.2-testing.0",
+  "description": "Vite plugin for Schema 2.0 shader libraries (.slab → GLSL + shader_frame API). Install @testing for current 2.0; latest is legacy 1.0.",
   "type": "module",
   "license": "MIT OR Apache-2.0",
   "author": "ShaderLab Contributors",
@@ -61,6 +61,10 @@
       "types": "./dist/svelte/use-shader.d.ts",
       "import": "./dist/svelte/use-shader.js",
       "svelte": "./dist/svelte/ShaderFrame.svelte"
+    },
+    "./svelte/ShaderFrame.svelte": {
+      "svelte": "./dist/svelte/ShaderFrame.svelte",
+      "default": "./dist/svelte/ShaderFrame.svelte"
     }
   },
   "bin": {
@@ -85,11 +89,11 @@
     "check:compiler-boundary": "node ./scripts/check-compiler-boundary.mjs"
   },
   "peerDependencies": {
-    "vite": "^5.0.0 || ^6.0.0",
     "@nuxt/kit": "^3.13.0 || ^4.0.0",
     "react": ">=18.0.0 <20.0.0",
-    "vue": "^3.4.0",
-    "svelte": "^4.0.0 || ^5.0.0"
+    "svelte": "^4.0.0 || ^5.0.0",
+    "vite": "^5.0.0 || ^6.0.0",
+    "vue": "^3.4.0"
   },
   "peerDependenciesMeta": {
     "@nuxt/kit": {
@@ -107,11 +111,15 @@
   },
   "devDependencies": {
     "@nuxt/kit": "^3.15.0",
-    "@types/react": "^19.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/svelte": "^5.3.1",
+    "@testing-library/vue": "^8.1.0",
     "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
     "happy-dom": "^15.11.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "svelte": "^5.55.9",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^3.0.0",

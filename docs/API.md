@@ -11,7 +11,8 @@ This reference covers the current Schema 2.0 runtime and Vite integration.
 | `@yoruxiii/shaderlab/client` | Ambient TypeScript declaration for `*.slab` imports. |
 | `@yoruxiii/shaderlab/react` | React `ShaderFrame` component and `useShaderFrame`. |
 | `@yoruxiii/shaderlab/vue` | Vue `ShaderFrame` component and `useShaderFrame`. |
-| `@yoruxiii/shaderlab/svelte` | Svelte `shaderframe` action and `ShaderFrame.svelte`. |
+| `@yoruxiii/shaderlab/svelte` | Svelte `shaderframe` action. |
+| `@yoruxiii/shaderlab/svelte/ShaderFrame.svelte` | Svelte `ShaderFrame` component. |
 | `@yoruxiii/shaderlab/nuxt` | Nuxt module that registers the Vite plugin. |
 | `@yoruxiii/shaderlab/sveltekit` | SvelteKit-friendly Vite plugin re-export. |
 | `@yoruxiii/shaderlab/remix` | Remix-friendly Vite plugin re-export. |
@@ -114,13 +115,31 @@ React:
 ```tsx
 import { ShaderFrame } from "@yoruxiii/shaderlab/react";
 
-<ShaderFrame frame={shader_frame.clouds(fx) { depth: 0.5 }} />;
+<ShaderFrame
+  frame={shader_frame.clouds(fx, { depth: 0.5 })}
+  mountOptions={{ visibilityPause: true }}
+  uniforms={{ depth: 0.7 }}
+  ref={canvasRef}
+/>;
 ```
 
 Vue:
 
-```ts
+```vue
+<script setup lang="ts">
 import { ShaderFrame } from "@yoruxiii/shaderlab/vue";
+import { shader_frame } from "@yoruxiii/shaderlab";
+
+const frame = shader_frame.clouds(fx, { depth: 0.5 });
+</script>
+
+<template>
+  <ShaderFrame
+    :frame="frame"
+    :mount-options="{ visibilityPause: true }"
+    :uniforms="{ depth: 0.7 }"
+  />
+</template>
 ```
 
 Svelte:
@@ -128,10 +147,12 @@ Svelte:
 ```svelte
 <script lang="ts">
   import { shaderframe } from "@yoruxiii/shaderlab/svelte";
+  import ShaderFrame from "@yoruxiii/shaderlab/svelte/ShaderFrame.svelte";
   export let frame;
 </script>
 
-<canvas use:shaderframe={frame} />
+<canvas use:shaderframe={{ frame, mountOptions: { visibilityPause: true } }} />
+<ShaderFrame {frame} mountOptions={{ visibilityPause: true }} uniforms={{ depth: 0.7 }} />
 ```
 
-Framework helpers only mount and unmount a `ShaderFrameInstance`; they do not import slab paths or build frame options.
+Framework helpers mount/unmount a `ShaderFrameInstance`, forward mount options, and can apply mutable uniforms declaratively. They do not import slab paths or build frame options.

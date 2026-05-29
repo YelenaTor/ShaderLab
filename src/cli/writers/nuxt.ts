@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WriterReport, WriterRunOptions } from "./types.js";
 import { appendFilePreview, emptyReport, mergeReports } from "./types.js";
-import { scaffoldHelloSlab } from "./scaffold.js";
+import { scaffoldShaderlabFiles } from "./scaffold.js";
 
 const NUXT_NAMES = ["nuxt.config.ts", "nuxt.config.mjs", "nuxt.config.js"];
 
@@ -15,7 +15,7 @@ export function findNuxtConfig(projectRoot: string): string | null {
 }
 
 function hasNuxtModule(src: string): boolean {
-  return /["']shaderlab\/nuxt["']/.test(src);
+  return /["'](?:@yoruxiii\/)?shaderlab\/nuxt["']/.test(src);
 }
 
 function ensureNuxtModule(src: string): { ok: true; out: string } | { ok: false } {
@@ -25,13 +25,13 @@ function ensureNuxtModule(src: string): { ok: true; out: string } | { ok: false 
   if (/modules\s*:\s*\[\s*\]/.test(src)) {
     return {
       ok: true,
-      out: src.replace(/modules\s*:\s*\[\s*\]/, `modules: ["shaderlab/nuxt"]`),
+      out: src.replace(/modules\s*:\s*\[\s*\]/, `modules: ["@yoruxiii/shaderlab/nuxt"]`),
     };
   }
   if (/modules\s*:\s*\[/.test(src)) {
     return {
       ok: true,
-      out: src.replace(/modules\s*:\s*\[/, `modules: [\n    "shaderlab/nuxt",`),
+      out: src.replace(/modules\s*:\s*\[/, `modules: [\n    "@yoruxiii/shaderlab/nuxt",`),
     };
   }
   return { ok: false };
@@ -39,7 +39,11 @@ function ensureNuxtModule(src: string): { ok: true; out: string } | { ok: false 
 
 export function writeNuxtConfig(projectRoot: string, opts?: WriterRunOptions): WriterReport {
   const dryRun = opts?.dryRun === true;
-  const r = mergeReports(emptyReport(), scaffoldHelloSlab(projectRoot, opts));
+  const r = mergeReports(emptyReport(), scaffoldShaderlabFiles(projectRoot, opts));
+  if (opts?.config === false) {
+    r.messages.push("Skipped Nuxt config edit.");
+    return r;
+  }
   const cfg = findNuxtConfig(projectRoot);
   if (!cfg) {
     r.messages.push("No nuxt.config.* found; created src/shaders/hello.slab only.");
@@ -49,13 +53,13 @@ export function writeNuxtConfig(projectRoot: string, opts?: WriterRunOptions): W
   let src = original;
   if (hasNuxtModule(src)) {
     r.skipped.push(cfg);
-    r.messages.push("Nuxt config already includes shaderlab/nuxt; skipped.");
+    r.messages.push("Nuxt config already includes @yoruxiii/shaderlab/nuxt; skipped.");
     return r;
   }
   const patched = ensureNuxtModule(src);
   if (!patched.ok) {
     r.messages.push(
-      'Could not find `modules: [...]` in nuxt.config. Add "shaderlab/nuxt" to modules manually.',
+      'Could not find `modules: [...]` in nuxt.config. Add "@yoruxiii/shaderlab/nuxt" to modules manually.',
     );
     return r;
   }

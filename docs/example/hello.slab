@@ -1,0 +1,29 @@
+<shaderlab version="2.0">
+  <shader_frame id="bg" type="canvas_25d">
+    <uniforms>
+      <uniform name="depth" type="float" hint="layer_depth" mutable="true" default="0.35" />
+      <uniform name="parallax" type="float" hint="parallax_strength" mutable="true" default="0.04" />
+    </uniforms>
+    <fragment><![CDATA[
+vec2 p = PARALLAX_UV * 10.0;
+COLOR = vec4(
+  0.15 + 0.15 * sin(p.x + TIME + LAYER_DEPTH),
+  0.2 + 0.1 * sin(p.y * 0.7 + TIME * 0.8),
+  0.35 + 0.2 * cos(p.x * 0.5 + TIME * 0.5 + PARALLAX_STRENGTH * 10.0),
+  1.0
+);
+    ]]></fragment>
+  </shader_frame>
+  <shader_frame id="chroma" type="postprocess">
+    <uniforms>
+      <uniform name="strength" type="float" hint="range(0.0, 0.05)" mutable="true" default="0.015" />
+    </uniforms>
+    <fragment><![CDATA[
+vec2 o = strength * vec2(sin(TIME * 2.5), cos(TIME * 1.7));
+vec4 r = texture(SCREEN_TEXTURE, SCREEN_UV + vec2(o.x, 0.0));
+vec4 g = texture(SCREEN_TEXTURE, SCREEN_UV);
+vec4 b = texture(SCREEN_TEXTURE, SCREEN_UV - vec2(o.x, 0.0));
+COLOR = vec4(r.r, g.g, b.b, 1.0);
+    ]]></fragment>
+  </shader_frame>
+</shaderlab>

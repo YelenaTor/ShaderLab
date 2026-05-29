@@ -6,7 +6,7 @@
  *
  * ```ts
  * import { vitePlugin as remix } from "@remix-run/dev";
- * import shaderlab from "shaderlab/remix";
+ * import shaderlab from "@yoruxiii/shaderlab/remix";
  * export default defineConfig({ plugins: [remix(), shaderlab()] });
  * ```
  */

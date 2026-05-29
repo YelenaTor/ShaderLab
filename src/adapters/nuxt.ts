@@ -6,7 +6,7 @@ import shaderlab, { type ShaderlabPluginOptions } from "../vite/entry.js";
  *
  * ```ts
  * // nuxt.config.ts
- * export default defineNuxtConfig({ modules: ["shaderlab/nuxt"] });
+ * export default defineNuxtConfig({ modules: ["@yoruxiii/shaderlab/nuxt"] });
  * ```
  */
 export default defineNuxtModule<ShaderlabPluginOptions>({

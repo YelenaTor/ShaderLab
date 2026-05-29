@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WriterReport, WriterRunOptions } from "./types.js";
 import { appendFilePreview, emptyReport, mergeReports } from "./types.js";
-import { scaffoldHelloSlab } from "./scaffold.js";
+import { scaffoldShaderlabFiles } from "./scaffold.js";
 
 const VITE_NAMES = ["vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"];
 
@@ -15,14 +15,14 @@ export function findViteConfig(projectRoot: string): string | null {
 }
 
 function hasShaderlabPlugin(src: string): boolean {
-  return /from\s+["']shaderlab\/vite["']/.test(src) && /\bshaderlab\s*\(/.test(src);
+  return /from\s+["'](?:@yoruxiii\/)?shaderlab\/vite["']/.test(src) && /\bshaderlab\s*\(/.test(src);
 }
 
 function ensureImport(src: string): string {
-  if (/from\s+["']shaderlab\/vite["']/.test(src)) {
+  if (/from\s+["'](?:@yoruxiii\/)?shaderlab\/vite["']/.test(src)) {
     return src;
   }
-  return `import shaderlab from "shaderlab/vite";\n${src}`;
+  return `import shaderlab from "@yoruxiii/shaderlab/vite";\n${src}`;
 }
 
 function ensurePluginInPluginsArray(src: string): { ok: true; out: string } | { ok: false } {
@@ -48,7 +48,11 @@ function ensurePluginInPluginsArray(src: string): { ok: true; out: string } | { 
 
 export function writeViteConfig(projectRoot: string, opts?: WriterRunOptions): WriterReport {
   const dryRun = opts?.dryRun === true;
-  const r = mergeReports(emptyReport(), scaffoldHelloSlab(projectRoot, opts));
+  const r = mergeReports(emptyReport(), scaffoldShaderlabFiles(projectRoot, opts));
+  if (opts?.config === false) {
+    r.messages.push("Skipped Vite config edit.");
+    return r;
+  }
   const existing = findViteConfig(projectRoot);
   const target = existing ?? join(projectRoot, "vite.config.ts");
 
@@ -77,8 +81,8 @@ export function writeViteConfig(projectRoot: string, opts?: WriterRunOptions): W
     return r;
   }
 
-  const minimal = `import { defineConfig } from "vite";
-import shaderlab from "shaderlab/vite";
+const minimal = `import { defineConfig } from "vite";
+import shaderlab from "@yoruxiii/shaderlab/vite";
 
 export default defineConfig({
   plugins: [shaderlab()],

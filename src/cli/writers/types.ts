@@ -1,7 +1,12 @@
 /** Options threaded through init writers (e.g. dry-run). */
 export interface WriterRunOptions {
   dryRun?: boolean;
+  example?: InitExample;
+  config?: boolean;
 }
+
+export type UiFramework = "react" | "vue" | "svelte" | "vanilla" | "unknown";
+export type InitExample = Exclude<UiFramework, "unknown"> | "none";
 
 /** Populated in dry-run mode for unified-diff-style previews. */
 export interface FileChangePreview {

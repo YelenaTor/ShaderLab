@@ -6,7 +6,7 @@
  *
  * ```ts
  * import { sveltekit } from "@sveltejs/kit/vite";
- * import shaderlab from "shaderlab/sveltekit";
+ * import shaderlab from "@yoruxiii/shaderlab/sveltekit";
  * export default defineConfig({ plugins: [sveltekit(), shaderlab()] });
  * ```
  */

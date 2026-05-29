@@ -31,7 +31,7 @@ When changing syntax, frame types, builtins, hints, or diagnostics:
 1. Update compiler types, parser, validator, and codegen together.
 2. Add or update fixtures under `test/fixtures`.
 3. Add compiler tests for valid and invalid cases.
-4. Update `docs/LANGUAGE.md` and any relevant usage examples.
+4. Update `docs/LANGUAGE.md`, `docs/AGENTS.md` (if agent-facing behavior changed), and any relevant usage examples.
 5. Run the full verification commands.
 
 ## Changing Runtime Behavior

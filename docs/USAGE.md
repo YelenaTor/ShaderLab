@@ -6,6 +6,8 @@
 npm install @yoruxiii/shaderlab@testing
 ```
 
+Schema 2.0 is on the **`testing`** dist-tag. **`latest`** is Schema 1.0 (legacy) — do not mix APIs in one project.
+
 ## Vite
 
 ```ts
@@ -93,9 +95,18 @@ React, Vue, and Svelte helpers mount an existing `ShaderFrameInstance`. Build th
 ```bash
 npx shaderlab init
 npx shaderlab init --dry-run
+npx shaderlab init -y
 ```
 
-`init` detects the current project, patches supported Vite-style config where possible, and creates `src/shaders/hello.slab` when missing.
+`init` detects both the project platform (Nuxt, SvelteKit, Remix, Next, Vite, or unknown) and UI layer (React, Vue, Svelte, vanilla, or unknown). It prompts before patching supported Vite-style config and creating example files. Use `-y` / `--yes` for non-interactive defaults.
+
+Supported init output:
+
+- `src/shaders/hello.slab` when missing.
+- scoped Vite/Nuxt config imports such as `@yoruxiii/shaderlab/vite`.
+- optional React, Vue, Svelte, or vanilla example files.
+
+Next.js is detected, but ShaderLab does not patch `next.config` because ShaderLab is currently a Vite plugin.
 
 ## Common Patterns
 
@@ -144,4 +155,6 @@ In that last example, `grade` is a `postprocess` frame. ShaderLab automatically 
 
 ## Example
 
-See [examples/vanilla-vite](../examples/vanilla-vite) for a minimal Vite project using `canvas_25d` and `postprocess` composition.
+See [example/README.md](./example/README.md) for a minimal `canvas_25d` + postprocess reference (`hello.slab` + `main.ts`). This folder ships in the npm package.
+
+The runnable Vite project in the ShaderLab repository is [examples/vanilla-vite](../examples/vanilla-vite).
