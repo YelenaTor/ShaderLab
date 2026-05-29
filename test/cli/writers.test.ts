@@ -6,6 +6,7 @@ import { dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeViteConfig } from "../../src/cli/writers/vite.js";
 import { writeNuxtConfig } from "../../src/cli/writers/nuxt.js";
+import { writeNextStub } from "../../src/cli/writers/next.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, "../fixtures/projects");
@@ -97,6 +98,21 @@ describe("CLI writers", () => {
       expect(r.createdFiles.some((f) => f.endsWith("ShaderLabExample.tsx"))).toBe(true);
       const example = readFileSync(join(root, "src", "ShaderLabExample.tsx"), "utf8");
       expect(example).toContain("@yoruxiii/shaderlab/react");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("creates experimental Next config wiring", () => {
+    const root = mkdtempSync(join(tmpdir(), "shaderlab-next-"));
+    try {
+      writeFileSync(join(root, "package.json"), JSON.stringify({ dependencies: { next: "^16.0.0" } }));
+      const r = writeNextStub(root, { example: "react" });
+      expect(r.createdFiles.some((f) => f.endsWith("next.config.ts"))).toBe(true);
+      const cfg = readFileSync(join(root, "next.config.ts"), "utf8");
+      expect(cfg).toContain("@yoruxiii/shaderlab/next");
+      expect(cfg).toContain("withShaderlab");
+      expect(r.messages.join("\n")).toContain("experimental Next.js webpack-mode support");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

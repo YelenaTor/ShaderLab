@@ -44,6 +44,41 @@ export interface ShaderlabDiagnostic {
   suggestion?: string;
 }
 
+const DOC_BASE = "https://github.com/YelenaTor/ShaderLab/tree/Testing/docs";
+
+const HELP_BY_CODE: Partial<Record<ErrorCodeId, string>> = {
+  E0101:
+    `Create a Schema 2.0 slab with \`<shaderlab version="2.0">\` as the root. See ${DOC_BASE}/LANGUAGE.md#root.`,
+  E0201:
+    "Give every <shader_frame> a GLSL-safe id, for example `id=\"clouds\"`. That id becomes `shader_frame.clouds(...)`.",
+  E0203:
+    "Use one of: `canvas_item`, `canvas_25d`, `spatial`, or `postprocess`.",
+  E0301:
+    "Add a non-empty `<fragment><![CDATA[...]]></fragment>` block. Fragment code must assign `COLOR`.",
+  E0302:
+    "Add a `name` attribute to the uniform. Runtime names are exposed without the generated `u_` prefix.",
+  E0303:
+    "Use one of: `float`, `int`, `bool`, `vec2`, `vec3`, `vec4`, or `sampler2D`.",
+  E0304:
+    "Uniform names must start with a letter or underscore and contain only letters, digits, and underscores.",
+  E0401:
+    "Schema 2.0 uses `<shader_frame>`, not legacy `<shader>`. Install `@yoruxiii/shaderlab@testing` and update the slab schema.",
+  E0402:
+    "Schema 2.0 requires `version=\"2.0\"`. The npm `latest` tag is legacy Schema 1.0; use the `testing` tag for this API.",
+  E0405:
+    "`postprocess` frames are fullscreen terminal passes. Remove `<vertex>` and put work in `<fragment>`.",
+  E0406:
+    "`CANVAS_TEXTURE` and `CANVAS_UV` are only valid in `type=\"spatial\" mode=\"augment\"` frames.",
+  E0407:
+    "Spatial augments inherit fullscreen geometry from the upstream pass. Remove the `<vertex>` block.",
+  H0312:
+    "Move this builtin to a compatible frame type: TEXTURE => canvas_item/canvas_25d, SCREEN_* => postprocess, CANVAS_* => spatial augment, PARALLAX_* => canvas_25d.",
+  W0201:
+    "Unknown hints are ignored. Common hints: `range(min,max)`, `color`, `texture`, `mouse_position`, `layer_depth`, `parallax_strength`.",
+  W0202:
+    "Adjust the default value or widen the `range(min,max)` hint. Runtime values are clamped at bind time.",
+};
+
 export const ERROR_CODES: Record<ErrorCodeId, { severity: Severity; summary: string }> = {
   E0101: {
     severity: "Error",
@@ -208,6 +243,10 @@ export function formatDiagnostic(d: ShaderlabDiagnostic, defaultFilename: string
   let out = `[shaderlab] ${file}:${line}\n  ${d.code} [${sev}] — ${d.message}`;
   if (d.suggestion) {
     out += `\n  → ${d.suggestion}`;
+  }
+  const help = HELP_BY_CODE[d.code];
+  if (help) {
+    out += `\n  Help: ${help}`;
   }
   return out;
 }

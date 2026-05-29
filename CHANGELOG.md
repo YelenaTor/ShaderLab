@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.3-testing.0
+
+- Adds experimental `@yoruxiii/shaderlab/next` webpack-mode support through `withShaderlab()`.
+- Adds local packed-package fixture validation for framework adoption checks.
+- Expands the Vite peer range target to cover Vite 5 through 8 after fixture validation.
+- Improves common compiler and runtime diagnostics with inline setup help.
+- Redesigns the README and aligns usage/API/agent docs around the Schema 2.0 surface.
+
 ## Current Testing Line
 
 This line is Schema 2.0 only.

@@ -16,6 +16,7 @@ This reference covers the current Schema 2.0 runtime and Vite integration.
 | `@yoruxiii/shaderlab/nuxt` | Nuxt module that registers the Vite plugin. |
 | `@yoruxiii/shaderlab/sveltekit` | SvelteKit-friendly Vite plugin re-export. |
 | `@yoruxiii/shaderlab/remix` | Remix-friendly Vite plugin re-export. |
+| `@yoruxiii/shaderlab/next` | Experimental Next.js webpack-mode helper. |
 
 ## `shader_frame`
 
@@ -156,3 +157,18 @@ Svelte:
 ```
 
 Framework helpers mount/unmount a `ShaderFrameInstance`, forward mount options, and can apply mutable uniforms declaratively. They do not import slab paths or build frame options.
+
+## Experimental Next.js
+
+```ts
+import { withShaderlab } from "@yoruxiii/shaderlab/next";
+
+export default withShaderlab({});
+```
+
+`withShaderlab` patches Next's webpack config with two loaders:
+
+- a `.slab` loader that emits the same runtime module shape as the Vite plugin
+- a pre-transform loader for `shader_frame.<id>(fx) { ... }` call blocks
+
+Turbopack support is deferred. Use webpack mode for development and builds.

@@ -264,7 +264,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       const [lo, hi] = u.range;
       if (v < lo || v > hi) {
         console.warn(
-          `[shaderlab] H0401 [Hazard] ΓÇö uniform "${u.name}" out of range; clamped to [${lo}, ${hi}]`,
+          `[shaderlab] H0401 [Hazard] - uniform "${u.name}" out of range; clamped to [${lo}, ${hi}]. Fix: pass a value inside the declared range() hint or widen the slab hint.`,
         );
         return Math.min(hi, Math.max(lo, v));
       }
@@ -330,7 +330,7 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       }
     } else {
       throw new Error(
-        "[shaderlab] mount() expects an HTMLCanvasElement or an HTMLElement container",
+        "[shaderlab] mount() expects an HTMLCanvasElement or an HTMLElement container. In SSR frameworks, create and mount ShaderLab frames from browser/client code only.",
       );
     }
     if (this.raf !== 0) {
@@ -358,7 +358,9 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
     }
     this.gl = canvas.getContext("webgl2", ctxAttrs);
     if (!this.gl) {
-      throw new Error("[shaderlab] WebGL2 context not available");
+      throw new Error(
+        "[shaderlab] WebGL2 context not available. ShaderLab must run in a browser with WebGL2 enabled; SSR and test DOMs need a browser-only guard or a WebGL mock.",
+      );
     }
     this.slave = false;
     this.buildProgram();
@@ -371,12 +373,12 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] postprocess requires mount(canvas, { feedFrom: upstreamShaderInstance })",
+          "[shaderlab] postprocess requires mount(canvas, { feedFrom: upstreamShaderInstance }). Prefer creating postprocess frames through shader_frame so ShaderLab can auto-wire the upstream canvas frame.",
         );
       }
       if (!isValidPostFeedPartner(p)) {
         throw new Error(
-          "[shaderlab] postprocess feedFrom must be canvas_item, canvas_25d, or canvas-fed spatial (CANVAS_TEXTURE / CANVAS_UV)",
+          "[shaderlab] postprocess feedFrom must be canvas_item, canvas_25d, or canvas-fed spatial (CANVAS_TEXTURE / CANVAS_UV). Check slab pipeline order and avoid manually passing feedFrom to auto-composed frames.",
         );
       }
       this.partner = p;
@@ -386,12 +388,12 @@ export class ShaderLabRuntime implements ShaderFrameInstance<Record<string, unkn
       const p = options?.feedFrom;
       if (!(p instanceof ShaderLabRuntime)) {
         throw new Error(
-          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires mount(canvas, { feedFrom: canvas_item, canvas_25d, or canvas-fed spatial instance })",
+          "[shaderlab] spatial (CANVAS_TEXTURE / CANVAS_UV) requires mount(canvas, { feedFrom: canvas_item, canvas_25d, or canvas-fed spatial instance }). Most apps should attach spatial frames as augments instead of mounting them directly.",
         );
       }
       if (!isValidSpatialAugmentFeedPartner(p)) {
         throw new Error(
-          "[shaderlab] spatial feedFrom must be a canvas_item, canvas_25d, or canvas-fed spatial shader runtime (got a different shader type)",
+          "[shaderlab] spatial feedFrom must be a canvas_item, canvas_25d, or canvas-fed spatial shader runtime. Use spatial mode=\"augment\" only after a canvas feeder.",
         );
       }
       this.partner = p;

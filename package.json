@@ -1,6 +1,6 @@
 {
   "name": "@yoruxiii/shaderlab",
-  "version": "0.4.2-testing.0",
+  "version": "0.4.3-testing.0",
   "description": "Vite plugin for Schema 2.0 shader libraries (.slab → GLSL + shader_frame API). Install @testing for current 2.0; latest is legacy 1.0.",
   "type": "module",
   "license": "MIT OR Apache-2.0",
@@ -43,6 +43,20 @@
       "types": "./dist/adapters/remix.d.ts",
       "import": "./dist/adapters/remix.js"
     },
+    "./next": {
+      "types": "./dist/adapters/next.d.ts",
+      "import": "./dist/adapters/next.js",
+      "require": "./dist/next/adapter.cjs",
+      "default": "./dist/adapters/next.js"
+    },
+    "./next/slab-loader.cjs": {
+      "require": "./dist/next/slab-loader.cjs",
+      "default": "./dist/next/slab-loader.cjs"
+    },
+    "./next/transform-loader.cjs": {
+      "require": "./dist/next/transform-loader.cjs",
+      "default": "./dist/next/transform-loader.cjs"
+    },
     "./postinstall": {
       "import": "./dist/cli/postinstall.js"
     },
@@ -82,21 +96,38 @@
     "docs"
   ],
   "scripts": {
-    "build": "vite build && tsc --emitDeclarationOnly && node ./scripts/copy-svelte.mjs",
+    "build": "vite build && tsc --emitDeclarationOnly && node ./scripts/copy-assets.mjs",
     "postinstall": "node ./scripts/postinstall.cjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check:compiler-boundary": "node ./scripts/check-compiler-boundary.mjs"
+    "check:compiler-boundary": "node ./scripts/check-compiler-boundary.mjs",
+    "test:fixtures": "node ./scripts/validate-fixtures.mjs"
   },
   "peerDependencies": {
     "@nuxt/kit": "^3.13.0 || ^4.0.0",
+    "@remix-run/dev": "^2.0.0",
+    "@sveltejs/kit": "^2.0.0",
+    "next": "^16.0.0",
+    "nuxt": "^3.13.0 || ^4.0.0",
     "react": ">=18.0.0 <20.0.0",
     "svelte": "^4.0.0 || ^5.0.0",
-    "vite": "^5.0.0 || ^6.0.0",
+    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0",
     "vue": "^3.4.0"
   },
   "peerDependenciesMeta": {
     "@nuxt/kit": {
+      "optional": true
+    },
+    "@remix-run/dev": {
+      "optional": true
+    },
+    "@sveltejs/kit": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    },
+    "nuxt": {
       "optional": true
     },
     "react": {

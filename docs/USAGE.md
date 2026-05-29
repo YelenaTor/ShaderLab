@@ -6,7 +6,7 @@
 npm install @yoruxiii/shaderlab@testing
 ```
 
-Schema 2.0 is on the **`testing`** dist-tag. **`latest`** is Schema 1.0 (legacy) — do not mix APIs in one project.
+Schema 2.0 is on the **`testing`** dist-tag. **`latest`** is Schema 1.0 (legacy) - do not mix APIs in one project.
 
 ## Vite
 
@@ -88,6 +88,16 @@ export default defineConfig({
 });
 ```
 
+Next.js experimental webpack mode:
+
+```ts
+import { withShaderlab } from "@yoruxiii/shaderlab/next";
+
+export default withShaderlab({});
+```
+
+Use webpack mode for development/builds while Turbopack support is deferred. The Next adapter compiles `.slab` imports and applies the `shader_frame.*(...) { ... }` block transform before Next parses app code.
+
 React, Vue, and Svelte helpers mount an existing `ShaderFrameInstance`. Build the frame yourself with `shader_frame.<id>(lib)`.
 
 ## CLI
@@ -98,15 +108,15 @@ npx shaderlab init --dry-run
 npx shaderlab init -y
 ```
 
-`init` detects both the project platform (Nuxt, SvelteKit, Remix, Next, Vite, or unknown) and UI layer (React, Vue, Svelte, vanilla, or unknown). It prompts before patching supported Vite-style config and creating example files. Use `-y` / `--yes` for non-interactive defaults.
+`init` detects both the project platform (Nuxt, SvelteKit, Remix, Next, Vite, or unknown) and UI layer (React, Vue, Svelte, vanilla, or unknown). It prompts before patching supported config and creating example files. Use `-y` / `--yes` for non-interactive defaults.
 
 Supported init output:
 
 - `src/shaders/hello.slab` when missing.
-- scoped Vite/Nuxt config imports such as `@yoruxiii/shaderlab/vite`.
+- scoped Vite/Nuxt/Next config imports such as `@yoruxiii/shaderlab/vite` and `@yoruxiii/shaderlab/next`.
 - optional React, Vue, Svelte, or vanilla example files.
 
-Next.js is detected, but ShaderLab does not patch `next.config` because ShaderLab is currently a Vite plugin.
+Next.js support is experimental and webpack-mode only. `shaderlab init` can add `withShaderlab()` to `next.config`; use `next dev --webpack` if your Next version defaults dev mode to Turbopack.
 
 ## Common Patterns
 

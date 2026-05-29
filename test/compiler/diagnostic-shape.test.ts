@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { compileSlab } from "../../src/compiler/compile.js";
-import { ERROR_CODES, type ErrorCodeId } from "../../src/compiler/errors.js";
+import { ERROR_CODES, formatDiagnostic, type ErrorCodeId } from "../../src/compiler/errors.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(here, "../fixtures");
@@ -51,6 +51,16 @@ describe("diagnostic consistency", () => {
       "w0101_bad_render_mode.slab",
     );
     expect(r.diagnostics.some((d) => d.code === "W0101")).toBe(true);
+  });
+
+  it("formatDiagnostic includes inline help for common setup failures", () => {
+    const r = compileSlab(
+      readFileSync(join(fixturesDir, "e0401_shader_legacy.slab"), "utf8"),
+      "e0401_shader_legacy.slab",
+    );
+    const legacy = r.diagnostics.find((d) => d.code === "E0401");
+    expect(legacy).toBeDefined();
+    expect(formatDiagnostic(legacy!, "e0401_shader_legacy.slab")).toContain("Help:");
   });
 
   it("parse-time uniform diagnostics use opening-tag line when not on line 1", () => {

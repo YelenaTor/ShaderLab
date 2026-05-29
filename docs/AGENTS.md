@@ -194,6 +194,18 @@ export default defineConfig({
 });
 ```
 
+### Next.js (experimental)
+
+```ts
+// next.config.ts
+import { withShaderlab } from "@yoruxiii/shaderlab/next";
+
+export default withShaderlab({});
+```
+
+This is webpack-mode support. Turbopack support is deferred. The helper wires `.slab`
+imports and the `shader_frame.*(...) { ... }` transform before Next parses app code.
+
 ---
 
 ## Entry Points
@@ -209,6 +221,7 @@ export default defineConfig({
 | `@yoruxiii/shaderlab/nuxt` | Nuxt module | Node / Nuxt config |
 | `@yoruxiii/shaderlab/sveltekit` | SvelteKit-friendly plugin re-export | Node / Vite config |
 | `@yoruxiii/shaderlab/remix` | Remix-friendly plugin re-export | Node / Vite config |
+| `@yoruxiii/shaderlab/next` | Experimental Next.js webpack-mode config helper | Node / Next config |
 
 ---
 
@@ -409,7 +422,8 @@ npx shaderlab --version
 
 `init` detects both the project framework (Nuxt, SvelteKit, Remix, Next, Vite, or unknown)
 and UI layer (React, Vue, Svelte, vanilla, or unknown). It prompts before patching config
-and creating example files; `-y` uses detected defaults for CI.
+and creating example files; `-y` uses detected defaults for CI. Next config patching is
+experimental and webpack-mode only.
 
 Detected frameworks: `nuxt`, `sveltekit`, `remix`, `next`, `vite`, `unknown`.
 Detected UI layers: `react`, `vue`, `svelte`, `vanilla`, `unknown`.

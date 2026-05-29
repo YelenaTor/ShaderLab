@@ -175,6 +175,10 @@ Diagnostics include:
 - `message`
 - optional `filename`, `line`, and `suggestion`
 
+Common setup failures also include inline `Help:` text in Vite and experimental Next output.
+The diagnostic code is the stable identifier; help text is remediation guidance and may become
+more specific over time.
+
 Common codes:
 
 | Code | Meaning |

@@ -11,12 +11,17 @@ export default defineConfig({
         index: resolve(root, "src/index.ts"),
         internal: resolve(root, "src/internal.ts"),
         "vite/entry": resolve(root, "src/vite/entry.ts"),
+        "vite/emit-slab-module": resolve(root, "src/vite/emit-slab-module.ts"),
+        "vite/shader-frame-transform": resolve(root, "src/vite/shader-frame-transform.ts"),
+        "compiler/compile": resolve(root, "src/compiler/compile.ts"),
+        "compiler/errors": resolve(root, "src/compiler/errors.ts"),
         "react/index": resolve(root, "src/react/index.ts"),
         "vue/index": resolve(root, "src/vue/index.ts"),
         "svelte/use-shader": resolve(root, "src/svelte/use-shader.ts"),
         "adapters/nuxt": resolve(root, "src/adapters/nuxt.ts"),
         "adapters/sveltekit": resolve(root, "src/adapters/sveltekit.ts"),
         "adapters/remix": resolve(root, "src/adapters/remix.ts"),
+        "adapters/next": resolve(root, "src/adapters/next.ts"),
         "cli/index": resolve(root, "src/cli/index.ts"),
         "cli/postinstall": resolve(root, "src/cli/postinstall.ts"),
       },
@@ -29,6 +34,7 @@ export default defineConfig({
         if (id === "vite" || id.startsWith("vite/")) return true;
         if (id.startsWith("node:")) return true;
         if (id === "@nuxt/kit" || id.startsWith("@nuxt/kit/")) return true;
+        if (id === "next" || id.startsWith("next/")) return true;
         if (id === "react" || id.startsWith("react/")) return true;
         if (id === "react-dom" || id.startsWith("react-dom/")) return true;
         if (id === "vue" || id.startsWith("vue/")) return true;
